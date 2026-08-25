@@ -1,0 +1,346 @@
+# `lnrm2.stan` 流程拆解
+
+> 對象：`adaptiveSFT/lnrm2.stan`
+> 模型類別：**Log-Normal Race Model (LNRM)**，帶非決策時間位移 `psi`，
+> 以二次多項式把刺激強度（intensity / salience）映射到累積器的漂移速度。
+
+---
+
+## 1. 一句話總結
+
+這個 Stan 檔在做的事情是：**用「兩個對數常態累積器賽跑」的模型，同時擬合反應時間 (RT)
+與正確率 (accuracy)，把「刺激強度 → 作業難度」的關係估成一條二次曲線**，
+好讓外層的 adaptive 程序能反推「要用多強的刺激才能達到指定的難度水準」。
+
+它不是一個獨立的分析腳本，而是 `adaptiveSFT_functions.R` 裡
+`find_salience_polynomial(polynomial_order = 2)` 所呼叫的擬合引擎。
+
+---
+
+## 2. 背景：什麼是 Log-Normal Race Model
+
+賽跑模型 (race model) 的假設是：每個可能的反應各自對應一個獨立的證據累積器，
+誰先到達門檻，誰就決定了受試者的反應。觀察到的資料只有兩個數字
+——**哪一個贏了**（correct / incorrect）以及**贏在什麼時候**（RT）。
+
+LNRM 把「第 *i* 個累積器的完成時間」寫成
+
+$$T_i = \psi + \exp(X_i), \qquad X_i \sim \mathcal{N}(z_i,\ \sigma^2)$$
+
+也就是說 $T_i - \psi$ 服從對數常態分佈。其中
+
+* $\psi$ = **非決策時間 (non-decision time)**，編碼與運動反應的固定成本，
+  所有累積器共用；
+* $z_i$ = 第 *i* 個累積器的**對數尺度速度參數**。
+  在對數常態下 $z_i$ **越小代表越快**（注意方向與 drift rate 相反）。
+
+本模型只有兩個累積器：
+
+| 索引 | 意義 | 對應的反應 |
+|---|---|---|
+| `z[1,]` | 正確反應的累積器 | 贏 ⇒ `correct == 1` |
+| `z[2,]` | 錯誤反應的累積器 | 贏 ⇒ `correct == 0` |
+
+---
+
+## 3. 逐段拆解
+
+### 3.1 `data` — 輸入什麼
+
+```stan
+int<lower=1> N;                       // 試次總數
+real intensity[N];                    // 每一試次的刺激強度 / 顯著度
+int<lower=0,upper=1> correct[N];      // 該試次是否答對
+real<lower=0> minRT;                  // 全體 RT 的最小值
+real<lower=0> rt[N];                  // 每一試次的反應時間
+```
+
+這份資料是由 R 端的 `dataframe2stan()` 打包的
+（`adaptiveSFT_functions.R:168`）：
+
+```r
+standat <- with(dat, list(N = dim(dat)[1], intensity = intensity,
+                          correct = correct, minRT = min(rt), rt = rt))
+```
+
+`minRT` 之所以要當成資料傳進來，是因為它被用來當作 `psi` 的上界
+——非決策時間不可能比觀察到最快的那個反應還長，否則 `rt - psi` 會變成負數，
+對數常態密度沒有定義。
+
+### 3.2 `transformed data` — 預先算好平方項
+
+```stan
+real square_intensity[N];
+square_intensity = square(intensity);
+```
+
+純粹是效率考量。`intensity²` 只跟資料有關、與參數無關，
+所以放在 `transformed data` 只會在編譯後算一次，不會每個 leapfrog step 重算。
+
+### 3.3 `parameters` — 要估什麼
+
+| 參數 | 範圍 | 角色 |
+|---|---|---|
+| `mu` | 實數 | 兩個累積器速度的**共同基準**（整體反應快慢） |
+| `alpha` | 實數 | intensity 的**一次項**係數 |
+| `alpha2` | 實數 | intensity 的**二次項**係數（曲率） |
+| `varZ` | > 0 | 對數常態的尺度參數（見 §6 的命名陷阱） |
+| `psi` | (0, minRT) | 非決策時間 |
+
+### 3.4 `transformed parameters` — 難度如何進入模型
+
+```stan
+for (tr in 1:N) {
+   z[1,tr] = mu - alpha * intensity[tr] - alpha2 * square_intensity[tr];
+   z[2,tr] = mu + alpha * intensity[tr] + alpha2 * square_intensity[tr];
+}
+```
+
+這是整個模型的核心設計。定義**難度函數**
+
+$$d(x) \;=\; \alpha x + \alpha_2 x^2$$
+
+則兩個累積器是圍繞共同基準 `mu` **對稱地**被推開的：
+
+$$z_1 = \mu - d(x), \qquad z_2 = \mu + d(x)$$
+
+意義是：
+
+* $d(x) > 0$ ⇒ 正確累積器變快（$z_1$ 變小）、錯誤累積器變慢 ⇒ 正確率上升、RT 下降。
+* $d(x) = 0$ ⇒ 兩者完全相同 ⇒ 正確率 50%（純猜測）。
+* 刺激強度的效果不必是線性的：`alpha2` 讓它可以是一條**拋物線**，
+  能捕捉常見的「一開始效果很大、後來飽和」的心理物理曲線形狀。
+
+這個對稱參數化的好處是 `mu` 只管**整體速度**、`d(x)` 只管**難度**，
+兩者的角色分得比較乾淨。
+
+### 3.5 `model` — 先驗與似然
+
+**先驗：**
+
+```stan
+varZ  ~ inv_gamma(1, .1);   // 尺度參數，弱訊息、限制為正
+mu    ~ normal(0, 1);
+alpha ~ normal(0, 2);       // 一次項給比較寬的先驗
+alpha2~ normal(0, 1);       // 二次項收得比較緊 → 偏好接近線性的解
+```
+
+`psi` 沒有明寫先驗。原始碼註解寫的是 *"improper flat prior on positive reals"*，
+但實際上因為宣告時已經有 `<lower=0, upper=minRT>`，
+Stan 會自動套用 logit 轉換並加上對應的 Jacobian，
+**實際得到的是 (0, minRT) 上的均勻分佈**——是一個 proper prior，不是 improper 的。
+註解與實作在這裡有落差。
+
+**似然：race 的關鍵**
+
+```stan
+if (correct[tr]) {
+   target += lognormal_lpdf (rt[tr] - psi | z[1,tr], varZ);   // 贏家的密度
+   target += lognormal_lccdf(rt[tr] - psi | z[2,tr], varZ);   // 輸家還沒完成
+} else {
+   target += lognormal_lpdf (rt[tr] - psi | z[2,tr], varZ);
+   target += lognormal_lccdf(rt[tr] - psi | z[1,tr], varZ);
+}
+```
+
+這兩行是整個模型的靈魂。推導如下：
+
+我們觀察到的是 $(T, m)$ ——完成時間 $T=t$ 以及贏家身分 $m$。
+「$m$ 在 $t$ 時刻獲勝」這個事件等於：
+
+1. 累積器 $m$ **恰好**在 $t$ 完成 → 密度 $f_m(t)$
+2. **且**所有其他累積器在 $t$ 時**都還沒**完成 → 存活函數 $\prod_{i \ne m} S_i(t)$
+
+因為累積器彼此獨立，聯合密度就是相乘：
+
+$$\mathcal{L}(t, m) \;=\; f_m(t)\;\prod_{i \neq m} S_i(t)
+\;=\; f_m(t)\;\prod_{i \neq m}\bigl[1 - F_i(t)\bigr]$$
+
+取對數之後乘法變加法，就是上面那兩個 `target +=`。
+Stan 的 `lognormal_lccdf` 就是 $\log S(t) = \log[1-F(t)]$
+（lccdf = **l**og **c**omplementary **c**umulative **d**istribution **f**unction，
+也就是 log survival function），而且它是**數值穩定**地直接算出來的，
+不是先算 CDF 再做 `log(1 - ...)`。這點在移植到別的框架時特別重要（見 §7）。
+
+同樣的邏輯在 R 端有一份對照實作，可以互相驗證
+（`adaptiveSFT_functions.R:61` 的 `dlognormalrace`）：
+
+```r
+g <- dlnorm(x - psi, mu[m], sigma[m], log = TRUE)              # 贏家密度
+G <- G + plnorm(x - psi, mu[i], sigma[i],
+                lower = FALSE, log = TRUE)                     # 輸家存活
+rval <- exp(g + G)
+```
+
+`lower = FALSE` 就是取上尾，等價於 `lccdf`。
+
+---
+
+## 4. 由參數推回正確率
+
+因為兩個累積器共用同一個 $\sigma$，正確率有封閉解。
+反應正確 $\iff T_1 < T_2 \iff X_1 < X_2$，而
+
+$$X_1 - X_2 \sim \mathcal{N}\bigl(z_1 - z_2,\ 2\sigma^2\bigr),
+\qquad z_1 - z_2 = -2d(x)$$
+
+所以
+
+$$P(\text{correct} \mid x) \;=\; P(X_1 - X_2 < 0)
+\;=\; \Phi\!\left(\frac{2\,d(x)}{\sigma\sqrt{2}}\right)
+\;=\; \Phi\!\left(\frac{\sqrt{2}\,d(x)}{\sigma}\right)$$
+
+注意正確率只取決於 **$d(x)/\sigma$ 這個比值**，與 `mu` 和 `psi` 無關。
+`mu` 與 `psi` 只影響 RT 的位置，不影響正確率。這是一個很有用的檢查：
+
+* 想調**正確率** → 動 `alpha` / `alpha2` / `varZ`
+* 想調**整體 RT** → 動 `mu` / `psi`
+
+也因此 `mu` 與 `psi` 之間存在明顯的**相關性**（兩者都在拉 RT 的位置），
+在後驗上通常會看到一條斜的脊 (ridge)，是這個模型採樣時的主要困難來源之一。
+
+### 4.1 數值驗證
+
+上面兩個結論（似然是一個合法的聯合密度、以及正確率的封閉解）都經過蒙地卡羅與
+數值積分交叉驗證。取 `mu=1.5, alpha=0.8, alpha2=-0.15, sigma=0.6, psi=0.12, x=1.0`：
+
+```
+m=0 (correct)    ∫ f_1(t)S_2(t) dt = 0.937247
+m=1 (incorrect)  ∫ f_2(t)S_1(t) dt = 0.062753
+                 總和              = 1.000000     ← 確認是合法密度
+P(correct) 由積分求得 = 0.937247
+P(correct) 由 Φ(√2 d/σ) = 0.937247               ← 兩者一致
+```
+
+正確率公式另外也用 40 萬次模擬賽跑檢查過，在 x = 0.5 ~ 3.0 的範圍內
+模擬值與理論值的差距都在 ±0.0006 以內（蒙地卡羅誤差範圍內）。
+
+§5 提到的二次式反解也驗證過是精確的：把 `h_targ.dist` 代回
+$\alpha_2 x^2 + \alpha x$ 確實恰好等於 `h_targ / 2`。
+
+---
+
+## 5. 它在 adaptiveSFT 整體流程中的位置
+
+`lnrm2.stan` 是 adaptive 校準迴圈裡的「量尺」。完整流程：
+
+```
+  受試者做 method-of-constant-stimuli 作業
+              │
+              ▼
+  data.frame(intensity, rt, correct)
+              │  dataframe2stan()                   [R:168]
+              ▼
+  standat = {N, intensity, correct, minRT, rt}
+              │  stan(file = "lnrm2.stan", ...)     [R:216]
+              ▼
+  後驗樣本 {mu, alpha, alpha2, varZ, psi}
+              │  解 d(x) = target / 2
+              ▼
+  high / low salience 兩個刺激強度值
+              │
+              ▼
+  拿去跑 Double Factorial Paradigm (DFP) / SFT 主實驗
+```
+
+反推的那一步在 `find_salience_polynomial()`
+（`adaptiveSFT_functions.R:230` 起）。給定目標難度 `h_targ`，
+解這個二次方程式
+
+$$\alpha_2 x^2 + \alpha x - \tfrac{1}{2}\,\texttt{h\_targ} = 0$$
+
+程式碼裡對應的是：
+
+```r
+h_targ.dist <- (-alpha/alpha2 - sqrt((alpha/alpha2)^2 + 2/alpha2 * h_targ)) / 2
+```
+
+這是在**每一個後驗樣本上**都解一次，最後取 `mean(..., na.rm = TRUE)`
+——所以得到的是「後驗平均的 salience」，而不是「用後驗平均參數解出的 salience」。
+兩者不一樣，前者比較保守，因為它有把參數的不確定性帶進去。
+
+`if (post.diff$alpha2 < 0)` 這個條件只挑向下開口的拋物線，
+也就是「效果會飽和」的那種形狀；`alpha2 > 0` 時整段不會執行，
+`h_targ.dist` 會維持未定義狀態。這是實務上要留意的分支。
+
+SFT 為什麼需要這一步：Double Factorial Paradigm 要求每個通道都有
+**high / low salience 兩個水準**，而且這兩個水準在受試者之間必須是「等難度」的，
+否則後續的 SIC / MIC 分析會被個別差異污染。這個 Stan 模型就是用來
+**針對每個受試者個別校準**出他自己的 high / low 強度。
+
+---
+
+## 6. 命名陷阱：`varZ` 其實不是變異數
+
+這是讀這份程式碼最容易踩到的地方。
+
+Stan 的 `lognormal(mu, sigma)` 第二個參數依定義是**標準差**（在對數尺度上），
+不是變異數。所以
+
+```stan
+lognormal_lpdf(rt[tr] - psi | z[1,tr], varZ)
+                                        ^^^^ 這裡被當成 sigma 使用
+```
+
+儘管變數叫 `varZ`（variance of Z），它在似然裡扮演的是 **σ** 的角色。
+
+會取這個名字，推測是因為先驗選了 `inv_gamma(1, .1)`
+——inverse-gamma 是常態**變異數**的共軛先驗，命名沿用了那個直覺。
+
+而 R 端的對照函式則是另一套慣例，它收 `sigmasq` 然後**開根號**：
+
+```r
+dlognormalrace <- function(x, m, psi, mu, sigmasq) {
+  sigma <- sqrt(sigmasq)          # <- 這裡有開根號
+```
+
+**所以 Stan 的 `varZ` 與 R 的 `sigmasq` 不是同一個尺度。**
+若要把 Stan 的後驗樣本餵給 R 的 `dlognormalrace` / `plognormalrace`
+（`simulateLNRM_ogival.R:214` 附近就是這樣做的），必須先確認要不要平方。
+Python 端的 `adaptive_sft2.py:23` 也沿用了 R 的 `sigmasq` 慣例。
+移植到任何新框架時，**一律以 Stan 的用法為準：它是 sigma。**
+
+---
+
+## 7. 其他值得注意的地方
+
+**`psi` 的硬邊界。** 當 `psi → minRT` 時，最快的那個試次會有 `rt - psi → 0`，
+而對數常態密度在 0 處趨近於 0，log 密度趨近 $-\infty$。
+所以似然本身就會把 `psi` 從上界推開——這是好事（自帶保護），
+但也造成後驗在邊界附近極度不對稱，是 divergence 的常見來源。
+`adaptive_sft2.py:160` 用 `psi: .1 * dat['minRT']` 當初始值，
+就是在避開這個邊界。
+
+**`z` 被存成 `transformed parameters`。** 這代表每一個後驗抽樣都會存下
+`2 × N` 個數字。N 一大，輸出檔案會膨脹得很誇張。
+R 端用 `pars = c("mu","alpha","alpha2","varZ","psi")` 過濾掉了
+（`adaptiveSFT_functions.R:216`），但如果直接跑這個模型而沒指定 `pars`，
+記憶體會是個問題。要更乾淨的話，可以把 `z` 移進 `model` block 當區域變數。
+
+**可辨識性。** 承 §4，正確率只認得 $d(x)/\sigma$。
+如果資料裡 intensity 的變化範圍不夠大、或正確率都貼在天花板/地板，
+`alpha`、`alpha2`、`varZ` 三者會嚴重共線。二次項的先驗
+`alpha2 ~ normal(0,1)` 收得比一次項緊，多少有正則化的作用，
+但根本的解法是確保校準階段的 intensity 有涵蓋到中間的正確率區段。
+
+**只有 `lnrm2.stan` 在版本庫裡。** R 與 Python 程式碼還引用了
+`lnrm0.stan`、`lnrm1.stan`（一次項版本）、`lnrm2a.stan`（ogival / logistic 版本），
+但這些檔案目前不在 repo 中。`lnrm2a.stan` 應該是把 $d(x)$ 換成
+`L * inv_logit(slope * (x - midpoint))` 的變體，
+從 `getPr_ogival()`（`adaptiveSFT_functions.R:169`）的內容可以反推出來。
+
+**迴圈可以向量化。** `model` block 裡的 `for` 迴圈在 Stan 中是可以接受的，
+但改成向量化形式（用 `segment` 或先切成 correct / incorrect 兩組）
+通常能明顯加速，因為可以少建很多 autodiff 節點。
+
+---
+
+## 8. 對照速查表
+
+| 概念 | 數學 | Stan | R (`adaptiveSFT_functions.R`) |
+|---|---|---|---|
+| 贏家密度 | $\log f_m(t-\psi)$ | `lognormal_lpdf` | `dlnorm(..., log=TRUE)` |
+| 輸家存活 | $\log S_i(t-\psi)$ | `lognormal_lccdf` | `plnorm(..., lower=FALSE, log=TRUE)` |
+| 尺度參數 | $\sigma$ | `varZ`（實為 SD） | `sqrt(sigmasq)` |
+| 難度函數 | $d(x)=\alpha x + \alpha_2 x^2$ | `alpha*i + alpha2*i^2` | 同 |
+| 正確率 | $\Phi(\sqrt{2}\,d/\sigma)$ | — | — |
