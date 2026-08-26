@@ -447,3 +447,114 @@ rval <- exp(g + G)
 但這種試次的比例掉到 0.02%，所以「全部 RT」仍然單調下降。
 
 結論：**「刺激越明顯反應越快」對整體與答對的試次成立，對答錯的試次相反。**
+
+---
+
+## 11. 待確認的問題
+
+以下都是從程式碼看得到、但**光看程式碼無法確定原意**的事情。
+每一條都附上確切位置，可以直接拿去問熟悉這個模型的人。
+
+### 11.1 第 38-39 行的組合是不是在表達「賽跑」
+
+`lnrm2.stan:38-39`
+
+```stan
+target += lognormal_lpdf (rt[tr] - psi | z[1,tr], varZ);
+target += lognormal_lccdf(rt[tr] - psi | z[2,tr], varZ);
+```
+
+**問題：這個「機率密度 + 互補累積分布函數」的組合，是不是在表達
+「觀察到的 RT 是兩個累積器中先完成的那一個」？**
+
+背景：全檔沒有任何取最小值的運算（見 10.5），所以這個讀法無法從程式碼直接確認。
+這類模型在文獻上的名稱是 log-normal race model。
+
+如果答案是「是」，接著問：
+
+**當 `alpha * intensity + alpha2 * square_intensity` 上升時，
+`z[1,tr]` 變小、`z[2,tr]` 變大——這兩個變化對觀察到的 RT
+的影響方向是不是相反的？**
+
+（10.6 的推導假設答案是「是」。若不是，10.6 整段要重寫。）
+
+### 11.2 `varZ` 到底該是標準差還是變異數
+
+三處寫法互相不一致：
+
+| 位置 | 寫法 |
+|---|---|
+| `lnrm2.stan:38-39` | `varZ` 放在 `lognormal_lpdf` 第二個分布參數位置（Stan 手冊定義為標準差） |
+| `lnrm2.stan:30` | `varZ ~ inv_gamma(1,.1)`（inverse-gamma 通常用作變異數的先驗） |
+| `adaptiveSFT_functions.R:61-62` | 參數名為 `sigmasq`，函式內 `sigma <- sqrt(sigmasq)` |
+| `adaptive_sft2.py:23` | 同樣收 `sigmasq` 並在內部開根號 |
+
+**問題：Stan 的 `varZ` 與 R 的 `sigmasq` 是不是同一個量？
+如果要把 Stan 的後驗抽樣餵給 R 的 `dlognormalrace()`，要不要先平方？**
+
+（`simulateLNRM_ogival.R:214` 附近就有這種跨語言傳遞。）
+
+### 11.3 `psi` 的先驗
+
+`lnrm2.stan:35` 的註解：
+
+```stan
+// psi has improper flat prior on positive reals
+```
+
+但 `lnrm2.stan:17` 的宣告是：
+
+```stan
+real<lower=0,upper=minRT> psi;
+```
+
+**問題：註解與宣告不一致（註解說是正實數上的 improper flat，
+宣告卻有上下界）。哪一個是原意？**
+
+### 11.4 `alpha2 >= 0` 時反解不會執行
+
+`adaptiveSFT_functions.R:228`
+
+```r
+if (post.diff$alpha2 <0) {
+```
+
+整段解二次式的程式碼包在這個條件裡。`alpha2 >= 0` 的抽樣不會進入，
+`h_targ.dist` 與 `l_targ.dist` 不會被賦值。
+
+**問題：這是刻意只處理 `alpha2 < 0` 的情況，還是遺漏？
+如果後驗中有相當比例的抽樣是 `alpha2 >= 0`，應該怎麼處理？**
+
+### 11.5 `na.rm = TRUE` 會靜默排除無解的抽樣
+
+`adaptiveSFT_functions.R:279`
+
+```r
+return(list(high=mean(h_targ.dist, na.rm=TRUE),
+             low=mean(l_targ.dist, na.rm=TRUE), fit=fitModel))
+```
+
+當 `sqrt()` 內的值為負時會產生 NA，`na.rm = TRUE` 會把這些抽樣排除在平均之外，
+而且不會有任何提示。
+
+**問題：這是刻意的嗎？回報的 salience 是否應該同時附上
+「有多少比例的抽樣被排除」？**
+
+### 11.6 被引用但不在版本庫中的檔案
+
+| 檔名 | 引用位置 |
+|---|---|
+| `lnrm0.stan` | `simulateLNRM_ogival.R:157` |
+| `lnrm1.stan` | `adaptiveSFT_functions.R:210` |
+| `lnrm2a.stan` | `adaptiveSFT_functions.R:185`、`simulateLNRM_ogival.R:62`、`adaptive_sft2.py:167` |
+
+**問題：這三個檔案在哪裡？`lnrm2a.stan` 尤其重要——
+`find_salience_ogival()` 與 `adaptive_sft2.py` 的主要路徑都用它，
+不是用 `lnrm2.stan`。**
+
+### 11.7 陣列宣告語法
+
+`lnrm2.stan:3,4,6,9` 用的是 `real intensity[N]` 這種寫法。
+該語法在 Stan 2.26 標記棄用、2.33 移除，現行語法為 `array[N] real intensity`。
+
+**問題：目前是用哪個版本的 Stan 跑這份程式碼？**
