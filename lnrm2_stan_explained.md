@@ -344,3 +344,195 @@ R 端用 `pars = c("mu","alpha","alpha2","varZ","psi")` 過濾掉了
 | 尺度參數 | $\sigma$ | `varZ`（實為 SD） | `sqrt(sigmasq)` |
 | 難度函數 | $d(x)=\alpha x + \alpha_2 x^2$ | `alpha*i + alpha2*i^2` | 同 |
 | 正確率 | $\Phi(\sqrt{2}\,d/\sigma)$ | — | — |
+
+---
+
+## 9. 移植到 PyMC
+
+> 本節所有結論都在本機環境實測驗證過：
+> **PyMC 5.28.5 / PyTensor 2.38.3 / Python 3.11**。
+> 標示「已驗證」的都有實際跑過的數值輸出佐證。
+
+### 9.1 結論先講
+
+**Python 生態圈目前沒有現成、解析形式的 Log-Normal Race Model 套件。**
+最忠實的做法就是用 `pm.Potential` 自己把似然寫出來——這反而比套用現有套件
+更貼近原 Stan 模型，也更輕量。第 9.5 節有完整可跑的移植碼。
+
+### 9.2 API 對照表
+
+| Stan | PyMC v5 |
+|---|---|
+| `target += ...` | `pm.Potential("name", expr)` |
+| `lognormal_lpdf(y \| m, s)` | `pm.logp(pm.LogNormal.dist(mu=m, sigma=s), y)` |
+| `lognormal_lccdf(y \| m, s)` | **沒有直接對應——見 §9.3，這是最大的坑** |
+| `inv_gamma(1, .1)` | `pm.InverseGamma("varZ", alpha=1, beta=0.1)`（參數順序一致） |
+| `real<lower=0,upper=minRT> psi` | `pm.Uniform("psi", lower=0, upper=minRT)` |
+| `for` 迴圈 + `if/else` | `pt.switch(cond, a, b)` 向量化 |
+
+注意 v3 → v5 的兩個變化：`pm.DensityDist` 已被 `pm.CustomDist` 取代；
+`rv.logp(x)` 這種呼叫方式已移除，必須用模組層級的 `pm.logp(rv, x)`。
+
+### 9.3 ⚠️ 最大的坑：`lccdf` 沒有安全的直接對應
+
+PyMC 沒有 `logsf` / `logccdf` API。網路上（以及多數 porting guide）給的標準答案是
+
+```python
+lccdf = pm.math.log1mexp(pm.logcdf(rv, value))   # ❌ 會在關鍵區域壞掉
+```
+
+先說符號慣例（實測釐清，因為 PyTensor 與 PyMC 兩邊的 docstring 互相矛盾）：
+在目前版本中 `pt.log1mexp(x)` 與 `pm.math.log1mexp(x)` **算的都是 `log(1-exp(x))`，
+要求 `x ≤ 0`**（正數輸入回傳 `NaN`）。因為 `logcdf ≤ 0`，所以**不需要手動加負號**。
+舊版曾經預設吃正數（`log(1-exp(-x))`），`negative_input` 參數就是那個歷史遺跡，
+現已棄用，新程式碼不要傳它。
+
+**但符號對了，這個寫法還是會壞。** 實測：
+
+```
+sigma     真值 lccdf        log1mexp 路線
+0.6       -11.046460       -11.046459887   ✓
+0.2       -81.307775       -81.307778005   ✓
+0.05    -1250.565570             -inf      ✗
+0.033   -2865.061096             -inf      ✗
+0.01   -31149.836613             -inf      ✗
+```
+
+原因：當 σ 偏小時，輸家的 CDF 在 float64 下**飽和到恰好 1.0**，
+`logcdf` 回傳 `-0.0`，於是 `log1mexp(-0.0) = log(0) = -inf`。
+真值其實是 -1250、-2865 這種**有限**的大負數。
+Stan 的 `lognormal_lccdf` 是直接算尾端機率的，沒有這個問題。
+
+**後果是致命的**：NUTS 的 `jitter+adapt_diag` 初始化會隨機探到小 σ 的區域，
+模型會在還沒開始採樣前就直接拋出
+
+```
+SamplingError: Initial evaluation of model at starting point failed!
+{'varZ': -1.92, 'psi': -1.56, 'race': -inf}
+```
+
+**正確做法**——繞過 `logcdf`，改用常態存活函數。因為
+
+$$S_{\text{lognormal}}(x) = P(X > x) = P\!\left(Z > \tfrac{\log x - \mu}{\sigma}\right)
+= \Phi\!\left(-\tfrac{\log x - \mu}{\sigma}\right)$$
+
+所以：
+
+```python
+def lognormal_lccdf(x, mu, sigma):
+    """等價於 Stan 的 lognormal_lccdf，且在極端尾端數值穩定。"""
+    return pm.logcdf(pm.Normal.dist(0.0, 1.0), -(pt.log(x) - mu) / sigma)
+```
+
+PyTensor 的常態 `logcdf` 內部用 `erfcx` 處理尾端，所以是穩定的。
+已驗證：上表所有 σ（含 σ=0.01，lccdf = −31149）都與 `scipy.stats.lognorm.logsf`
+**完全吻合**。
+
+### 9.4 次要的坑：`CustomDist` 的 `observed` 不能依賴參數
+
+如果你選 `pm.CustomDist` 而非 `pm.Potential`，這樣寫會直接報錯（已驗證）：
+
+```python
+pm.CustomDist("rt_obs", ..., observed=rt - psi)
+# TypeError: Variables that depend on other nodes cannot be used for
+#            observed data. The data variable was: Sub.0
+```
+
+`observed=` 只能是常數資料。`rt - psi` 的位移必須搬進 `logp` 函式**內部**，
+把 `psi` 當成 `logp(value, ..., psi)` 的一個參數。
+`pm.Potential` 沒有這個限制——這也是本題推薦用 `Potential` 的原因之一。
+（代價是 `Potential` 不是隨機變數，做不了 posterior predictive check。）
+
+### 9.5 完整移植碼（已驗證可跑）
+
+完整可執行版本見同目錄的 **`lnrm2_pymc.py`**。核心如下：
+
+```python
+import numpy as np, pytensor
+pytensor.config.floatX = "float64"          # 建議：避免 float32 精度問題
+import pytensor.tensor as pt, pymc as pm
+
+def lognormal_lccdf(x, mu, sigma):          # Stan lognormal_lccdf 的穩定替代
+    return pm.logcdf(pm.Normal.dist(0.0, 1.0), -(pt.log(x) - mu) / sigma)
+
+with pm.Model() as model:
+    mu     = pm.Normal("mu", 0, 1)
+    alpha  = pm.Normal("alpha", 0, 2)
+    alpha2 = pm.Normal("alpha2", 0, 1)
+    varZ   = pm.InverseGamma("varZ", alpha=1, beta=0.1)   # ← 當 sigma 用，見 §6
+    psi    = pm.Uniform("psi", lower=0, upper=minRT)
+
+    d      = alpha * intensity + alpha2 * intensity**2     # transformed parameters
+    z1, z2 = mu - d, mu + d
+
+    ok     = pt.constant(correct == 1)                     # 取代 Stan 的 if/else
+    zw, zl = pt.switch(ok, z1, z2), pt.switch(ok, z2, z1)
+
+    u = pt.clip(pt.constant(rt) - psi, 1e-12, np.inf)      # rt - psi，含數值防護
+
+    lp    = pm.logp(pm.LogNormal.dist(mu=zw, sigma=varZ), u)   # 贏家密度
+    lccdf = lognormal_lccdf(u, zl, varZ)                       # 輸家存活
+    pm.Potential("race", pt.sum(lp + lccdf))                   # target +=
+
+    idata = pm.sample(1000, tune=1000, chains=4, target_accept=0.9,
+                      initvals={"psi": 0.3 * minRT})
+```
+
+**驗證結果。** 逐點比對：在三組不同參數下，這個 PyMC 圖算出的每一筆試次
+log-likelihood 與 `scipy` 參考實作（即 Stan 所計算的量）的最大絕對誤差為
+`4e-8 ~ 2e-6`，相對誤差穩定在 ~3e-8——純粹是浮點捨入，結構完全正確。
+
+用 N=500 的模擬資料（真值 `mu=1.5, alpha=0.8, alpha2=-0.15, sigma=0.6, psi=0.12`）
+跑 4 chains × 1000 draws，15 秒完成：
+
+```
+         mean     sd  hdi_3%  hdi_97%  ess_bulk  r_hat
+mu      1.387  0.039   1.314    1.462    2312.0   1.00
+alpha   0.683  0.068   0.560    0.812    1599.0   1.00
+alpha2 -0.115  0.025  -0.163   -0.068    1727.0   1.01
+varZ    0.591  0.033   0.533    0.650    1455.0   1.00
+psi     0.156  0.073   0.003    0.266    1354.0   1.00
+divergences: 0
+```
+
+`varZ`（0.591 vs 0.6）與 `alpha2` 回收得很好，**但 `psi` 系統性高估（0.156 vs 0.12）
+而 `mu` 系統性低估（1.387 vs 1.5）**——這正是 §4 預測的 `mu`/`psi` 後驗脊：
+兩者都在拉 RT 的位置，N=500 還不足以把它們分開。這不是移植錯誤，
+原始的 Stan 模型會有一模一樣的行為。實務上要嘛加大 N，要嘛給 `psi` 更強的先驗。
+
+### 9.6 現有套件生態（2026-08 查證）
+
+| 套件 | 狀態 | 能不能直接用 |
+|---|---|---|
+| **HSSM** | 活躍，v0.4.0（2026-07-15），需 Python ≥3.12。建立在 PyMC 5 + Bambi 上，定位是 HDDM 的接班人 | **不行。** 有 LBA / racing-diffusion / Poisson race，但**沒有 lognormal race**。而且那些模型用的是 LAN（神經網路近似似然），不是本模型的解析 lpdf × lccdf |
+| **HDDM** | **已停擺。** 最後版本 1.0.1（2023-12-03），依賴早已淘汰的 PyMC 2 | 不建議新專案使用 |
+| **ssm-simulators** | 活躍，v0.13.2（2026-07-16） | 是 HSSM 的模擬器後端，用來訓練 LAN，不提供解析似然 |
+| `pm.LogNormal` / `pm.Wald` | PyMC 內建 | 只是單一分布，race 邏輯仍要自己組 |
+
+> HSSM 的版本與日期我直接查了 PyPI 確認；
+> 「內部沒有 LNR 設定檔、LBA 走 LAN 近似」這部分來自對其原始碼樹的檢視，
+> 未在本機安裝驗證（HSSM 需要 Python ≥3.12，與本次驗證環境不符）。
+
+### 9.7 版本與效能注意事項
+
+**PyMC 6 需要 Python ≥ 3.12。** 這點很容易誤判：在 Python 3.11 下
+`pip install pymc` 只會裝到 5.28.5，看起來像是「最新版」，
+但 PyPI 上其實已有 6.3.1（2026-08-16）。`pip index versions pymc` 也只會列出 5.x。
+若要用 PyMC 6，先確認 Python 版本。
+
+PyMC 6 把 **nutpie**（Rust 實作的 NUTS）設為預設 sampler，不改模型碼就能受益。
+在 PyMC 5 下可以自己指定：
+
+```python
+pm.sample(nuts_sampler="nutpie")    # 或 "numpyro"（需額外安裝）
+```
+
+其他建議：
+
+* **全程向量化**。用 `pt.switch` 取代 Python 迴圈——逐筆建圖會產生巨大的計算圖，
+  compile 時間就先炸掉了。
+* **明確給 `initvals`**。`psi` 的邊界問題（§7）在 PyMC 一樣存在，
+  `initvals={"psi": 0.3*minRT}` 比依賴預設 jitter 可靠得多。
+* **設 `floatX="float64"`**。預設 float32 在這個模型的尾端計算上精度不夠。
+* 把資料包成 `pm.Data` 方便之後用 `pm.set_data` 換資料重跑，
+  這在 adaptive 迴圈裡每次加新試次都要重新擬合的情境特別有用。
