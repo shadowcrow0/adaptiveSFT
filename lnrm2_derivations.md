@@ -8,9 +8,7 @@
 
 以下用 `d_n` 代表那個重複出現的項：
 
-```
-  d_n = alpha * intensity[n] + alpha2 * square_intensity[n]
-```
+$$d_n = \alpha \cdot \texttt{intensity[n]} + \alpha_2 \cdot \texttt{square\_intensity[n]}$$
 
 ---
 
@@ -55,9 +53,9 @@ target += lognormal_lpdf(rt[tr] - psi | z[1,tr], varZ);
 
 程式碼餵進去的是 `rt[tr] - psi`，所以反推回來：
 
-```
-   reaction time = psi + exp(X),    X ~ Normal(z, varZ)
-```
+$$\text{reaction time} = \psi + \exp(X), \qquad X \sim \mathcal{N}(z,\; s^2)$$
+
+（$s$ 就是程式碼裡的 `varZ`。）
 
 `exp()` 是遞增函數：輸入越大，輸出越大。所以
 
@@ -67,12 +65,7 @@ target += lognormal_lpdf(rt[tr] - psi | z[1,tr], varZ);
 
 到這裡只證明了「**平均**變快」。但實際上成立的是更強的版本：
 
-```
-   exp(X)  =  exp(z + 晃動)  =  exp(z) * exp(晃動)
-                                 ~~~~~~   ~~~~~~~~~~
-                                 只跟 z    跟 z 完全
-                                  有關       無關
-```
+$$\exp(X) = \exp(z + \varepsilon) = \underbrace{\exp(z)}_{\text{只跟 } z \text{ 有關}} \cdot \underbrace{\exp(\varepsilon)}_{\text{跟 } z \text{ 完全無關}}, \qquad \varepsilon \sim \mathcal{N}(0,\; s^2)$$
 
 `z` 變成一個純粹的**乘法倍率**。所以改變 `z` 不是把分布往左推，
 而是把整條分布**等比例縮放**。
@@ -108,12 +101,9 @@ target += lognormal_lpdf(rt[tr] - psi | z[1,tr], varZ);
 
 `d_n` 等於 0 時，把它代入那兩行：
 
-```
-   z[1,tr] = mu - 0 = mu
-   z[2,tr] = mu + 0 = mu
-              ^^^^^^^^^^
-              兩列完全相同
-```
+$$z_{1n} = \mu - 0 = \mu, \qquad z_{2n} = \mu + 0 = \mu$$
+
+兩列完全相同。
 
 再看 `lnrm2.stan:38-43`，兩個分支用的分布參數變成一模一樣：
 
@@ -147,40 +137,32 @@ target += lognormal_lpdf(rt[tr] - psi | z[1,tr], varZ);
 
 設兩個完成時間為：
 
-```
-   T_1 = psi + exp(X_1),   X_1 ~ Normal(z_1n, varZ)
-   T_2 = psi + exp(X_2),   X_2 ~ Normal(z_2n, varZ)
-```
+$$T_1 = \psi + \exp(X_1), \quad X_1 \sim \mathcal{N}(z_{1n},\, s^2)$$
+$$T_2 = \psi + \exp(X_2), \quad X_2 \sim \mathcal{N}(z_{2n},\, s^2)$$
 
 答對等價於 `T_1 < T_2`，也等價於 `X_1 < X_2`（因為 psi 和 exp 都是遞增的）。
 兩個獨立常態相減仍是常態：
 
-```
-   X_1 - X_2 ~ Normal( z_1n - z_2n,  2 * varZ^2 )
+$$X_1 - X_2 \sim \mathcal{N}\big(z_{1n} - z_{2n},\; 2 s^2\big)$$
 
-   而      z_1n - z_2n = (mu - d_n) - (mu + d_n) = -2 * d_n
-```
+而
+
+$$z_{1n} - z_{2n} = (\mu - d_n) - (\mu + d_n) = -2 d_n$$
 
 所以
 
-```
-                                        (      2 * d_n      )         ( sqrt(2) * d_n )
-   P(correct) = P(X_1 - X_2 < 0) = Phi ( ----------------- ) =  Phi ( -------------- )
-                                        ( varZ * sqrt(2)    )         (      varZ     )
-```
+$$P(\text{correct}) = P(X_1 - X_2 < 0)
+= \Phi\!\left(\frac{2 d_n}{s\sqrt{2}}\right)
+= \Phi\!\left(\frac{\sqrt{2}\, d_n}{s}\right)$$
 
 `Phi` 是標準常態的累積分布函數，唯一重要的性質是**輸入越大、輸出越大**。
 所以整個公式只要看兩件事：
 
+$$P(\text{correct}) = \Phi\!\left(\frac{\sqrt{2}\,d_n}{s}\right)$$
+
 ```
-                      sqrt(2) * d_n
-      P(correct) = Phi( ------------- )
-                            varZ
-                        ~~~~   ~~~~
-                        分子   分母
-                         |      |
-              d_n 越大 --+      +-- varZ 越大 (雜訊越大)
-              正確率越高            正確率越低
+              分子 d_n 越大  ->  正確率越高
+              分母 s 越大    ->  正確率越低   (s = varZ, 雜訊)
 ```
 
 ### 數字驗證（varZ = 0.6）
@@ -212,9 +194,7 @@ square_intensity = square(intensity);
 
 把 `square_intensity[n]` 換回 `intensity[n]^2`：
 
-```
-   d_n = alpha * x_n + alpha2 * x_n^2
-```
+$$d_n = \alpha x_n + \alpha_2 x_n^2$$
 
 這是 `x_n` 的二次式，畫出來是拋物線。
 
@@ -291,6 +271,8 @@ rval <- exp(g + G)
    z[1,tr] = mu - d_n     -->  變小  -->  "答對" 的完成時間變短
    z[2,tr] = mu + d_n     -->  變大  -->  "答錯" 的完成時間變長
 ```
+
+用數學寫是 $z_{1n} = \mu - d_n$ 與 $z_{2n} = \mu + d_n$。
 
 ### 問題
 

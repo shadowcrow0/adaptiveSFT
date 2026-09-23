@@ -8,9 +8,11 @@
 **解釋概念時用 ASCII 圖。** 說明流程、資料結構、模型行為、或任何有
 「東西 A 怎麼變成東西 B」的內容時，畫一張 ASCII 圖，不要只用文字描述。
 
-只用 ASCII。不要用 Unicode 數學符號（psi、sigma、Phi 等一律寫英文，
-或直接用程式碼裡的變數名），也不要用 LaTeX——閱讀環境包含 GitHub 手機 app，
-兩者都不會正確顯示。
+**數學公式用 LaTeX**（行內 `$...$`，獨立 `$$...$$`）。GitHub 網頁版會渲染。
+**流程圖、結構圖用 ASCII art**，不要用 LaTeX 畫圖。
+
+**不要用 Unicode 數學符號**（psi、sigma、Phi 等）。要嘛寫成 LaTeX
+（`\psi`、`\sigma`、`\Phi`），要嘛在 ASCII 圖裡直接用程式碼的變數名。
 
 範例：
 
