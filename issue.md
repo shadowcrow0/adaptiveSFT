@@ -48,20 +48,30 @@ Error in if (post.diff$alpha2 < 0) 1 : the condition has length > 1
    alpha2[1] ≥ 0   ──►  h_targ.dist 沒被賦值 ──► :279 object not found
 ```
 
-**解法**（不改 repo，由 owner 決定後再套）：
+**解法**（不改 repo，由 owner 決定後再套）。最小修法是把 `if` 拆掉，
+讓公式無條件跑：
 
 ```r
-  l_targ.dist <- with(post.diff, ifelse(alpha2 < 0,
-        (-alpha/alpha2 - sqrt( (alpha/alpha2)^2 + 2 / alpha2 * l_targ)) / 2, NaN))
-  h_targ.dist <- with(post.diff, ifelse(alpha2 < 0,
-        (-alpha/alpha2 - sqrt( (alpha/alpha2)^2 + 2 / alpha2 * h_targ)) / 2, NaN))
+  # 刪掉 :228 的 if (...) { 和 :233 的 }，中間四行原封不動
+  l_targ.dist <- with(post.diff,
+        (-alpha/alpha2 - sqrt( (alpha/alpha2)^2 + 2 / alpha2 * l_targ)) / 2)
+  h_targ.dist <- with(post.diff,
+        (-alpha/alpha2 - sqrt( (alpha/alpha2)^2 + 2 / alpha2 * h_targ)) / 2)
 ```
 
-**數值會不會變**：`alpha2 < 0` 的 draw 結果完全相同；`alpha2 ≥ 0` 的 draw 舊碼算出
-`sqrt(負數)` = NaN 被 `na.rm` 丟掉，新碼直接給 NaN，也一樣。唯一差別：`alpha2 > 0`
-但判別式恰好 ≥ 0 的稀有 draw，舊碼保留、新碼丟掉。
+**數值會不會變**：舊 R 只要第一筆 draw 的 `alpha2 < 0` 就會把**全部** draw
+（含 `alpha2 > 0` 的）代進公式再 `mean(na.rm=TRUE)`。刪掉 `if` 之後走的就是這條路，
+所以舊碼能算出來的數字一個 bit 都不變；消失的只是「第一筆抽到正數就 object not found」
+那條失敗路。
 
-另外兩種寫法 `all(alpha2 < 0)`、`mean(alpha2) < 0` 數值都不同——**owner 要選一個**。
+其他寫法都會改數值，要 owner 拍板：
+
+| 寫法 | 跟舊碼比 |
+|---|---|
+| 刪 `if`（上面） | 成功路徑完全相同 |
+| `if (all(alpha2 < 0))` | 通過時相同，否則整個函式停 |
+| `if (mean(alpha2) < 0)` | 通過時相同，否則整個函式停 |
+| `ifelse(alpha2 < 0, 公式, NaN)` | **不同**。`alpha2 > 0` 且 target > 0 時判別式 `(α/α₂)² + 2·target/α₂` 恆正，舊碼一直有把這些 draw 算進平均；遮掉後只要後驗跨過 0，high/low 就會變 |
 
 同類潛伏案例：`psiSimulation_functions.R:45` `if (is.na(prior)) {`。現在 `prior <- NA`
 是純量所以沒事，一旦傳真正的 prior 陣列進去就炸。改 `if (all(is.na(prior)))`。
