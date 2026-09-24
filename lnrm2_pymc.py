@@ -17,6 +17,10 @@ lnrm2.stan 的 PyMC 版本（目前可以轉換的部分）。
 # TODO：Stan -> PyMC 轉換時撞到的問題
 # =====================================================================
 #
+# 註：TODO-1 / TODO-2 / TODO-4 / TODO-6 另有一條路可以整個繞開——把 likelihood 寫成
+#     numba + 自訂 pt.Op，不經過 PyMC 的 logcdf / observed 機制。見 model_lnrm2.py 與
+#     lnrm2_pymc_gaps.md §8。代價是沒有梯度，要用 DEMetropolisZ 而不是 NUTS。
+#
 # [x] TODO-1  lognormal_lccdf 在 PyMC 沒有對應函式。
 #             直覺寫法 pm.math.log1mexp(pm.logcdf(...)) 在 varZ 偏小時會回傳 -inf
 #             （CDF 在 float64 飽和成 1.0 -> logcdf = -0.0 -> log(0)），

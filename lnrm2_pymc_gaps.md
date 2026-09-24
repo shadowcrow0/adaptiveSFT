@@ -23,6 +23,7 @@ For the full porting notes, see `lnrm2_pymc_notes.md`.
 | 5 | `transformed parameters` block | `lnrm2.stan:19-28` | Partial | `pm.Deterministic` is opt-in, not a block |
 | 6 | Float precision in the tails | implicit | Partial | Must force `floatX = "float64"` |
 | 7 | Building the race from built-in RVs (`pm.LogNormal` observed + `pm.Censored`) | whole `model` block | **No** (for estimated `psi`) | `Censored` survival is −inf or silently wrong in the tail; shifted RV logp not inferable |
+| 8 | **Custom `pt.Op` route** (likelihood computed in numba, outside PyMC's logprob machinery) | — | **Resolves 1, 2, 4, 6, 7** | See section 8 and `model_lnrm2.py`; cost: no gradient, so no NUTS |
 
 Items 1 and 2 are the ones that will actually break a port. Items 3 to 6 are
 translation differences that need a deliberate rewrite but are not dangerous
@@ -458,6 +459,49 @@ To estimate `psi` with a log-normal race in PyMC 5.28.5, the only construction
 verified to be both expressible and numerically safe remains section 1 + 2:
 `pm.Potential` with `pm.logp(pm.LogNormal.dist(...))` for the winner and the
 normal-CDF survival for the loser.
+
+---
+
+## 8. What a custom `pt.Op` resolves
+
+Everything in items 1, 2, 4, 6 and 7 is a limitation of **PyMC's logprob
+machinery** — its `logcdf` / `log1mexp` composition, its rule that `observed`
+must be constant, its static graph, its `floatX`. A custom `pt.Op` computes the
+likelihood **outside** that machinery, in numba, and hands PyMC only a vector of
+numbers. The limitations then simply do not apply. Implemented and *verified* in
+`model_lnrm2.py`.
+
+```
+   numba scalar functions            pt building block           pm building block
+   ────────────────────────          ──────────────────          ────────────────────────────
+   lognormal_logpdf(y, m, s)   ──►   LNRM2_PointwiseOp    ──►   A: pm.Potential("obs", sum)
+   lognormal_logsf(y, m, s)          (make_node / perform)       B: pm.CustomDist(logp=Op,
+   log_norm_sf(u)  [erfc + asymptotic]                              observed=rt)
+```
+
+| Item | Why it disappears |
+|---|---|
+| 1 `lccdf` → −inf | The survival is `log_norm_sf(u)` via `erfc` for `u ≤ 30` and the asymptotic series above; matches `scipy.stats.norm.logsf` to 1e−16 relative up to `u = 250` (ln S = −31256). The table in section 1 is exact at every row, no −inf. |
+| 2 `observed` cannot be `rt − psi` | The Op receives `rt` as data and `psi` as a parameter; the subtraction happens inside `perform`. Assembly B places the Op in `pm.CustomDist(logp=...)` with `observed=rt`, giving a real observed RV with `psi` estimated (*verified*: builds, logp equals scipy to 1e−6). |
+| 4 per-trial `if/else` | Plain `if correct[i]` inside the numba loop. |
+| 6 float32 tails | numba computes in float64 regardless of `floatX`. |
+| 7 built-in RV composition | Not needed. |
+
+Per-trial log-likelihood from the Op matches the scipy reference to **1e−14**
+(the pure-PyMC route in items 1–2 reached 1e−6), because it is the closed form
+with no intermediate PyMC transform.
+
+**Cost.** The Op defines no gradient, so NUTS is unavailable; `model_lnrm2.py`
+samples with `pm.DEMetropolisZ`. On 1000 simulated trials, 8 chains × 3000
+draws: 4 of 5 parameters inside the 94% HDI, R-hat 1.01, ESS ≥ 858; `mu` sits
+just below its interval, the same `mu`/`psi` ridge the NUTS version shows.
+Adding a `grad` method (analytic derivatives of `ln f + ln S`) would restore
+NUTS; that is the natural next step if sampling efficiency matters.
+
+**The two remaining items are untouched by the Op** because they are not
+likelihood issues: item 3 (`psi`'s bounded declaration still has to be written
+as `pm.Uniform`) and item 5 (`transformed parameters` still needs
+`pm.Deterministic` to be saved).
 
 ---
 
