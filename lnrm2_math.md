@@ -2,29 +2,30 @@
 
 把 `lnrm2.stan` 每一行翻成數學式。每一節都先貼程式碼，再給對應的公式。
 
-本文所有密度公式都與 `scipy.stats` 比對過數值，確認一致。
+所有密度公式都與 `scipy.stats` 比對過數值，確認一致。
 
-> 數學用 LaTeX 寫，GitHub 網頁版會渲染。手機 app 可能只顯示原始碼。
+> 公式一律放在 code block 裡，用 Unicode 符號排版。
+> 這樣不經過任何數學渲染器，GitHub 網頁、GitHub app、Obsidian 顯示都一致。
 
 ---
 
 ## 0. 符號約定
 
-| 數學符號 | 程式碼 | 意義 |
+| 符號 | 程式碼 | 意義 |
 |---|---|---|
-| $n$ | `tr` | 試次編號，$n = 1,\dots,N$ |
-| $x_n$ | `intensity[n]` | 刺激強度 |
-| $c_n$ | `correct[n]` | 是否答對，取值 $0$ 或 $1$ |
-| $t_n$ | `rt[n]` | 反應時間 |
-| $t_{\min}$ | `minRT` | 所有 $t_n$ 的最小值 |
-| $\mu$ | `mu` | |
-| $\alpha,\ \alpha_2$ | `alpha`, `alpha2` | |
-| $s$ | `varZ` | 見下方說明 |
-| $\psi$ | `psi` | |
+| n | `tr` | 試次編號，n = 1 … N |
+| xₙ | `intensity[n]` | 刺激強度 |
+| cₙ | `correct[n]` | 是否答對，0 或 1 |
+| tₙ | `rt[n]` | 反應時間 |
+| t_min | `minRT` | 所有 tₙ 的最小值 |
+| μ | `mu` | |
+| α, α₂ | `alpha`, `alpha2` | |
+| s | `varZ` | 見下方說明 |
+| ψ | `psi` | |
 
-**關於 $s$（程式碼裡叫 `varZ`）。** 它在公式裡扮演的是**標準差**，不是變異數。
+**關於 s（程式碼裡叫 `varZ`）。** 它在公式裡扮演的是**標準差**，不是變異數。
 因為 Stan 的 `lognormal(m, s)` 第二個參數定義就是標準差，而程式碼把 `varZ`
-放在那個位置。本文一律用 $s$ 表示，以避免名稱誤導。
+放在那個位置。本文一律寫 s，避免名稱誤導。
 
 ---
 
@@ -32,27 +33,31 @@
 
 ### 對數常態機率密度
 
-Stan 的 `lognormal_lpdf(y | m, s)` 回傳 $\log f(y;m,s)$，其中
+Stan 的 `lognormal_lpdf(y | m, s)` 回傳 ln f(y; m, s)：
 
-$$
-f(y; m, s) \;=\; \frac{1}{y\,s\,\sqrt{2\pi}}\,
-\exp\!\left(-\frac{(\log y - m)^2}{2 s^2}\right),
-\qquad y > 0
-$$
+```
+                         1                    (     (ln y − m)²  )
+      f(y; m, s)  =  ───────────────  ·  exp  ( − ─────────────  )      y > 0
+                      y · s · √(2π)            (        2 s²      )
+```
 
 ### 對數常態互補累積分布（存活函數）
 
-令 $\Phi$ 為標準常態的累積分布函數
+Φ 是標準常態的累積分布函數：
 
-$$
-\Phi(u) \;=\; \frac{1}{\sqrt{2\pi}}\int_{-\infty}^{u} e^{-w^2/2}\,dw
-$$
+```
+                    1          u
+      Φ(u)  =  ─────────  ·  ∫    exp(−w² / 2) dw
+                 √(2π)        −∞
+```
 
-Stan 的 `lognormal_lccdf(y | m, s)` 回傳 $\log S(y;m,s)$，其中
+Stan 的 `lognormal_lccdf(y | m, s)` 回傳 ln S(y; m, s)：
 
-$$
-S(y; m, s) \;=\; 1 - F(y; m, s) \;=\; \Phi\!\left(-\frac{\log y - m}{s}\right)
-$$
+```
+                                         (     ln y − m  )
+      S(y; m, s)  =  1 − F(y; m, s)  = Φ ( − ──────────  )
+                                         (        s       )
+```
 
 ---
 
@@ -62,9 +67,9 @@ $$
 square_intensity = square(intensity);
 ```
 
-$$
-x_n^2, \qquad n = 1,\dots,N
-$$
+```
+      xₙ²          n = 1 … N
+```
 
 ---
 
@@ -75,17 +80,18 @@ z[1,tr] = mu - alpha * intensity[tr] - alpha2 * square_intensity[tr];
 z[2,tr] = mu + alpha * intensity[tr] + alpha2 * square_intensity[tr];
 ```
 
-先把重複出現的那一項取名為 $d_n$：
+先把重複出現的那一項取名為 dₙ：
 
-$$
-d_n \;=\; \alpha\,x_n + \alpha_2\,x_n^2
-$$
+```
+      dₙ  =  α·xₙ  +  α₂·xₙ²
+```
 
-則那兩行是
+則那兩行是：
 
-$$
-z_{1n} \;=\; \mu - d_n, \qquad z_{2n} \;=\; \mu + d_n
-$$
+```
+      z₁ₙ  =  μ − dₙ
+      z₂ₙ  =  μ + dₙ
+```
 
 ```
             z_1n = mu - d_n
@@ -110,35 +116,38 @@ alpha ~ normal(0,2);
 alpha2~ normal(0,1);
 ```
 
-常態密度
+常態密度：
 
-$$
-p_{\mathcal{N}}(v; m, \sigma) \;=\; \frac{1}{\sigma\sqrt{2\pi}}\,
-\exp\!\left(-\frac{(v-m)^2}{2\sigma^2}\right)
-$$
+```
+                            1                (    (v − m)²  )
+      p_N(v; m, σ)  =  ───────────  ·  exp   ( − ─────────  )
+                         σ·√(2π)              (     2 σ²     )
+```
 
-逆伽瑪密度
+逆伽瑪密度：
 
-$$
-p_{\mathrm{IG}}(v; a, b) \;=\; \frac{b^{a}}{\Gamma(a)}\,v^{-a-1} e^{-b/v}
-$$
+```
+                          b^a
+      p_IG(v; a, b)  =  ────────  ·  v^(−a−1)  ·  exp(−b / v)
+                         Γ(a)
+```
 
-代入 $a = 1$、$b = 0.1$，因為 $\Gamma(1) = 1$：
+代入 a = 1、b = 0.1，因為 Γ(1) = 1：
 
-$$
-p(s) \;=\; 0.1\, s^{-2}\, e^{-0.1/s}, \qquad s > 0
-$$
+```
+      p(s)  =  0.1 · s^(−2) · exp(−0.1 / s)            s > 0
+```
 
-所以四個先驗是
+四個先驗合起來：
 
-$$
-p(s) = 0.1\,s^{-2}e^{-0.1/s}, \quad
-p(\mu) = p_{\mathcal{N}}(\mu; 0,1), \quad
-p(\alpha) = p_{\mathcal{N}}(\alpha; 0,2), \quad
-p(\alpha_2) = p_{\mathcal{N}}(\alpha_2; 0,1)
-$$
+```
+      p(s)   =  0.1 · s^(−2) · exp(−0.1 / s)
+      p(μ)   =  p_N(μ;  0, 1)
+      p(α)   =  p_N(α;  0, 2)
+      p(α₂)  =  p_N(α₂; 0, 1)
+```
 
-`psi` 沒有 `~` 敘述，只有第 17 行的宣告 `real<lower=0,upper=minRT> psi`。
+`psi` 沒有 `~` 敘述，只有 `lnrm2.stan:17` 的宣告 `real<lower=0,upper=minRT> psi`。
 
 ---
 
@@ -154,35 +163,33 @@ if ( correct[tr] ) {
 }
 ```
 
-令 $y_n = t_n - \psi$（位移後的反應時間）。第 $n$ 試次貢獻的對數似然是
+令 yₙ = tₙ − ψ（位移後的反應時間）。第 n 試次貢獻的對數似然：
 
-$$
-\mathcal{L}_n =
-\begin{cases}
-\log f(y_n;\, z_{1n},\, s) \;+\; \log S(y_n;\, z_{2n},\, s), & c_n = 1\\[6pt]
-\log f(y_n;\, z_{2n},\, s) \;+\; \log S(y_n;\, z_{1n},\, s), & c_n = 0
-\end{cases}
-$$
+```
+   cₙ = 1 (答對):   Lₙ  =  ln f(yₙ; z₁ₙ, s)  +  ln S(yₙ; z₂ₙ, s)
 
-兩式只差在 $z_{1n}$ 與 $z_{2n}$ 對調。定義
+   cₙ = 0 (答錯):   Lₙ  =  ln f(yₙ; z₂ₙ, s)  +  ln S(yₙ; z₁ₙ, s)
+```
 
-$$
-w_n = \begin{cases} z_{1n}, & c_n = 1\\ z_{2n}, & c_n = 0\end{cases}
-\qquad
-\ell_n = \begin{cases} z_{2n}, & c_n = 1\\ z_{1n}, & c_n = 0\end{cases}
-$$
+兩式只差在 z₁ₙ 與 z₂ₙ 對調。定義贏家 wₙ 與輸家 lₙ：
 
-則兩個分支合併為一式
+```
+              ⎧ z₁ₙ   若 cₙ = 1                  ⎧ z₂ₙ   若 cₙ = 1
+      wₙ  =   ⎨                          lₙ  =   ⎨
+              ⎩ z₂ₙ   若 cₙ = 0                  ⎩ z₁ₙ   若 cₙ = 0
+```
 
-$$
-\mathcal{L}_n \;=\; \log f(y_n;\, w_n,\, s) \;+\; \log S(y_n;\, \ell_n,\, s)
-$$
+則兩個分支合併為一式：
 
-在原尺度上（log 相加等於原尺度相乘）
+```
+      Lₙ  =  ln f(yₙ; wₙ, s)  +  ln S(yₙ; lₙ, s)
+```
 
-$$
-\exp(\mathcal{L}_n) \;=\; f(y_n;\, w_n,\, s)\,\cdot\, S(y_n;\, \ell_n,\, s)
-$$
+在原尺度上（log 相加等於原尺度相乘）：
+
+```
+      exp(Lₙ)  =  f(yₙ; wₙ, s)  ×  S(yₙ; lₙ, s)
+```
 
 ```
    c_n = 1              c_n = 0
@@ -198,53 +205,44 @@ $$
 
 ## 6. 完整的目標函數
 
-Stan 的 `target` 累加後，整體是（相差一個與參數無關的常數）
+Stan 的 `target` 累加後，整體是（相差一個與參數無關的常數）：
 
-$$
-\log p(\mu, \alpha, \alpha_2, s, \psi \mid \text{data})
-\;=\;
-\log p(\mu) + \log p(\alpha) + \log p(\alpha_2) + \log p(s)
-$$
+```
+      ln p(μ, α, α₂, s, ψ | data)
 
-$$
-\qquad\qquad
-+\; \sum_{n=1}^{N}\Big[\,
-\log f(t_n - \psi;\, w_n,\, s)
-\;+\;
-\log S(t_n - \psi;\, \ell_n,\, s)
-\,\Big]
-\;+\; J
-$$
+          =   ln p(μ) + ln p(α) + ln p(α₂) + ln p(s)
 
-其中
+                   N
+              +   ∑   [ ln f(tₙ − ψ; wₙ, s)  +  ln S(tₙ − ψ; lₙ, s) ]
+                  n=1
 
-$$
-d_n = \alpha x_n + \alpha_2 x_n^2, \qquad
-z_{1n} = \mu - d_n, \qquad
-z_{2n} = \mu + d_n
-$$
+              +   J
+```
 
-$$
-w_n = \begin{cases} z_{1n}, & c_n = 1\\ z_{2n}, & c_n = 0\end{cases}
-\qquad\text{(贏的那一個)}
-\qquad
-\ell_n = \begin{cases} z_{2n}, & c_n = 1\\ z_{1n}, & c_n = 0\end{cases}
-\qquad\text{(輸的那一個)}
-$$
+其中：
 
-$J$ 是 Stan 對有界參數自動加上的 Jacobian 修正項，來自 `varZ` 的 `<lower=0>`
+```
+      dₙ   =  α·xₙ + α₂·xₙ²
+      z₁ₙ  =  μ − dₙ
+      z₂ₙ  =  μ + dₙ
+      wₙ   =  z₁ₙ 若 cₙ = 1，否則 z₂ₙ        (贏的那一個)
+      lₙ   =  z₂ₙ 若 cₙ = 1，否則 z₁ₙ        (輸的那一個)
+```
+
+J 是 Stan 對有界參數自動加上的 Jacobian 修正項，來自 `varZ` 的 `<lower=0>`
 與 `psi` 的 `<lower=0,upper=minRT>`。**它不是程式碼裡寫出來的**，是 Stan 的語言行為。
 
 ---
 
 ## 7. 一句話版本
 
-每個試次貢獻
+```
+      每個試次貢獻:
 
-$$
-\underbrace{f(y_n;\, w_n,\, s)}_{\text{贏家的機率密度}}
-\;\times\;
-\underbrace{S(y_n;\, \ell_n,\, s)}_{\text{輸家的存活函數}}
-$$
+           f(yₙ; wₙ, s)     ×     S(yₙ; lₙ, s)
+           ~~~~~~~~~~~~           ~~~~~~~~~~~~
+           贏家的機率密度          輸家的存活函數
 
-贏家與輸家由 `correct[n]` 決定，兩者的分布參數只差在 $d_n$ 的正負號。
+      贏家 / 輸家由 correct[n] 決定，
+      兩者的分布參數只差在 dₙ 的正負號。
+```
