@@ -175,9 +175,13 @@ cmdstanr / cmdstan ≥ 2.33 同樣拒絕。
 `find_salience_ogival` 和 `polynomial_order=1` 這兩條路完全跑不了。
 只有 `polynomial_order=2`（用 `lnrm2.stan`）能跑。
 
-PyMC / PyTensor 幫不上：檔案內容不知道就不能重寫。
-只能問原作者，或用 `getPr_ogival`（`adaptiveSFT_functions.R:9-18`）反推
-lnrm2a 的 likelihood 自己重建——那是新模型不是移植。
+原作者已確認（使用者轉述）：a/b/c 都是 `lnrm2.stan` 的微改。
+所以可以用同一套 `pt.Op` 積木重建，只換「強度 → 難度」那條曲線
+（`model_lnrm2a.py`，ogival = `L · inv_logit(slope·(x − midpoint))`，從
+`adaptiveSFT_functions.R:11` 反推）。**但**實測 L = 10 時模型講不通
+（accuracy 99%、rt 中位數 0.15 s、R-hat > 2），L = 2 就正常回收——
+代表微改的地方不只 d，還有別的（`z` 結構或 `L` 的角色）。
+沒有原檔，這個「別的」猜不出來。詳見 `model_lnrm2a.py` 檔頭 TODO-A1–A5。
 
 ### S3 `varZ` 命名陷阱 — **不是 bug，但要記得**
 
