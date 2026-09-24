@@ -22,6 +22,7 @@ For the full porting notes, see `lnrm2_pymc_notes.md`.
 | 4 | Per-trial `if / else` in the model | `lnrm2.stan:37-44` | **No** | Must vectorize with `pt.switch` |
 | 5 | `transformed parameters` block | `lnrm2.stan:19-28` | Partial | `pm.Deterministic` is opt-in, not a block |
 | 6 | Float precision in the tails | implicit | Partial | Must force `floatX = "float64"` |
+| 7 | Building the race from built-in RVs (`pm.LogNormal` observed + `pm.Censored`) | whole `model` block | **No** (for estimated `psi`) | `Censored` survival is −inf or silently wrong in the tail; shifted RV logp not inferable |
 
 Items 1 and 2 are the ones that will actually break a port. Items 3 to 6 are
 translation differences that need a deliberate rewrite but are not dangerous
@@ -368,6 +369,95 @@ pytensor.config.floatX = "float64"   # before importing pymc
 *Verified*: with `float64`, per-trial log-likelihood matches a scipy reference
 with maximum absolute error `4e-8` to `2e-6` (relative `≈ 3e-8`), i.e. pure
 floating-point rounding.
+
+---
+
+## 7. Composing the race from built-in distribution objects — does not work when `psi` is estimated
+
+A natural PyMC idiom is to avoid hand-written log-likelihoods entirely: make the
+winner an observed `pm.LogNormal` and express "the loser has not finished yet"
+with `pm.Censored` (an observation sitting exactly at its upper bound contributes
+`log P(T ≥ y)`, i.e. the survival function). *Verified* on PyMC 5.28.5: this
+route fails on three independent points.
+
+### 7a. `pm.Censored` computes the survival term unsafely
+
+Upper-censoring at `y = 20`, base `LogNormal(mu = 0.5, sigma = s)`:
+
+```
+   s        Censored logp        true ln S (scipy)
+   0.6         −11.046460           −11.046460     ok
+   0.2         −81.307778           −81.307775     ok
+   0.05             −inf          −1250.565570     WRONG
+   0.033            −inf          −2865.061096     WRONG
+   0.01             −inf         −31149.836613     WRONG
+```
+
+Same failure mode as section 1: internally the survival is `log1mexp(logcdf)`,
+and `logcdf` saturates to `−0.0`.
+
+With a `Wald` base the failure is **silent** instead of `−inf`. `pm.logcdf` of
+`Wald(mu = 1, lam)` at `x = 20`:
+
+```
+   lam    PyMC Wald.logcdf    implied survival    true survival (scipy = closed form)
+   3        −5.548e−04           5.5e−04              8.6e−15
+   30       −9.900e−03           9.9e−03              4.2e−121
+   300      −7.360e−03           7.3e−03              0 (underflow)
+```
+
+The implied survival is off by 11 to 120 orders of magnitude and nothing raises.
+A `Censored(Wald)` loser term therefore feeds NUTS a wrong likelihood without
+any warning. This is a defect in `Wald.logcdf`'s tail accuracy, reproduced
+directly with `pm.logcdf`, not in how `Censored` was called.
+
+### 7b. The `rt − psi` shift cannot be attached to an observed RV
+
+`observed=` must be constant (section 2), so the shift has to live inside the
+distribution. Building it as a transformed RV does not infer a logp in this
+version:
+
+```python
+def shifted_ln(mu, sigma, psi, size=None):
+    return pm.LogNormal.dist(mu=mu, sigma=sigma, size=size) + psi
+pm.CustomDist("w", z_win, varZ, psi, dist=shifted_ln, observed=rt)
+# NotImplementedError: Logprob method not implemented for Add
+```
+
+and `pm.Censored` refuses any input that is not a bare `.dist()` object:
+
+```
+ValueError: Censoring dist must be a distribution created via the `.dist()` API
+```
+
+`pm.Wald` has a built-in location parameter, and `pm.Wald("w", mu, lam, alpha=psi,
+observed=rt)` *does* give the correct shifted log-density (*verified* against
+scipy). So for a **Wald** race the shift is expressible — but the loser term is
+still blocked by 7a.
+
+### 7c. What does work: `psi` held fixed
+
+If `psi` is a constant, subtract it from the data first and the built-in
+composition is exact (*verified*: model log-likelihood minus priors and Jacobian
+matches the scipy reference to 1e−6 on 300 simulated trials):
+
+```python
+y = rt - psi_const                                        # psi is data now
+pm.LogNormal("winner", mu=z_win, sigma=varZ, observed=y)
+pm.Censored("loser", pm.LogNormal.dist(mu=z_lose, sigma=varZ),
+            lower=None, upper=y, observed=y)             # at the bound ⇒ survival
+```
+
+Costs: `psi` is not estimated, which changes the model relative to `lnrm2.stan`;
+and the `Censored` term still carries the 7a hazard whenever a draw explores
+small `varZ`.
+
+### Conclusion for this model
+
+To estimate `psi` with a log-normal race in PyMC 5.28.5, the only construction
+verified to be both expressible and numerically safe remains section 1 + 2:
+`pm.Potential` with `pm.logp(pm.LogNormal.dist(...))` for the winner and the
+normal-CDF survival for the loser.
 
 ---
 
