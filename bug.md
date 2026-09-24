@@ -1,8 +1,13 @@
 # bug.md — 這台機器現在能跑什麼、不能跑什麼（2026-09-24 實測）
 
-> 一句話：**Python 端全部能跑；R 端不能，因為三個 CRAN 套件沒裝，而 CRAN 被這台
+> 一句話：**Python 端全部能跑；R 端一開始不能，因為三個 CRAN 套件沒裝，而 CRAN 被這台
 > 機器的網路政策擋住。** 不是 R 壞、不是程式碼壞、不是版本問題，是網路。
 > 逐條指令與原始輸出見 `env_report.md`（subagent 寫，關鍵幾條我重跑過）。
+>
+> **後續（同日）**：繞過 CRAN 裝好了。rstan 走 Ubuntu apt（2.32.5），sft / diffIRT 從
+> GitHub 的 CRAN 鏡像原始碼編。`source("adaptiveSFT_functions.R")` 現在通過。
+> 做法在 `setup_r.sh`；這台 VM 是暫時的，下次 session 要重跑一次（約 5 分鐘）。
+> 為什麼連不到 CRAN / .edu 的完整調查在 `net_report.md`。
 
 ```
                  R 端                                   Python 端
@@ -148,7 +153,8 @@ pystan 2 已停止維護，跟新 NumPy / Cython 3 不相容。這個檔案本�
 
 | 問題 | 誰能解 | 做法 |
 |---|---|---|
-| CRAN 被擋 | **你**（環境設定） | 這個 cloud 環境的 Network access 設定：改成較寬的等級，或把 `cloud.r-project.org` 加進允許清單。位置：session 標題列的環境選單 → Edit。改完新開 session |
+| CRAN 被擋（治本） | **你**（環境設定，終端機改不了） | claude.ai/code → 環境選單 → 該環境的設定圖示 → Network access 改 **Custom** 並加 `cloud.r-project.org`（或改 **Full**）→ 開新 session。文件：code.claude.com/docs/en/cloud-environments |
+| CRAN 被擋（治標，已做） | 我 | `setup_r.sh`：apt 裝 rstan，GitHub 鏡像原始碼裝 sft / diffIRT。可貼進環境的 Setup script 讓每個新 session 自動跑 |
 | 裝了 rstan 之後 `lnrm2.stan` 編不過 | 你 / 原作者 | `issue.md` S1 那五行，或不用 rstan 改走 PyMC |
 | `adaptive_sft2.py` 要 pystan | 不用解 | 已被 `model_lnrm2.py` 取代 |
 | 系統 python 沒 numpy | 已解 | 用 venv |
