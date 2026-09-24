@@ -178,10 +178,11 @@ cmdstanr / cmdstan ≥ 2.33 同樣拒絕。
 原作者已確認（使用者轉述）：a/b/c 都是 `lnrm2.stan` 的微改。
 所以可以用同一套 `pt.Op` 積木重建，只換「強度 → 難度」那條曲線
 （`model_lnrm2a.py`，ogival = `L · inv_logit(slope·(x − midpoint))`，從
-`adaptiveSFT_functions.R:11` 反推）。**但**實測 L = 10 時模型講不通
-（accuracy 99%、rt 中位數 0.15 s、R-hat > 2），L = 2 就正常回收——
-代表微改的地方不只 d，還有別的（`z` 結構或 `L` 的角色）。
-沒有原檔，這個「別的」猜不出來。詳見 `model_lnrm2a.py` 檔頭 TODO-A1–A5。
+`adaptiveSFT_functions.R:11` 反推）。第一版 L = 10 時模型講不通
+（accuracy 99%、R-hat > 2）；原因是 `L` 是兩個累積器的**總**距離，每個累積器
+各偏 ½（`simulateLNRM_ogival.R:206-209` 的 `c(-.5,.5)*L`）。加上 ½ 之後
+L = 10 五個參數全部回收（R-hat ≤ 1.01）。經過見 `log.md`。
+剩下的假設（先驗、`L` 是不是常數）仍要原檔確認：`model_lnrm2a.py` 檔頭 TODO-A2–A5。
 
 ### S3 `varZ` 命名陷阱 — **不是 bug，但要記得**
 
@@ -292,3 +293,64 @@ cmdstanr / cmdstan ≥ 2.33 同樣拒絕。
    `mean(alpha2) < 0`、`all(alpha2 < 0)`，還是逐 draw 篩？三種數值結果不同。
 2. `lnrm2a.stan` / `lnrm1.stan` 去哪裡要。
 3. `varZ` 到底是 SD 還是 variance（Stan 當 SD，R 的 `dlognormalrace` 當 variance）。
+
+---
+
+## 7. lnrm2.stan 已經是 Python 之後，§1 / §2 每一項會怎樣
+
+結論先講：**只有 S1 消失。R2 一半消失一半還在。其餘 7 個全部還在，
+其中 S3 從「一種語言內部的命名陷阱」搬成「兩種語言之間的合約」。**
+
+### 逐項
+
+| 項目 | 改成 Python 後 | 為什麼 | 還要做什麼 |
+|---|---|---|---|
+| **R1** if 長度>1 | 還在 | 二次式反解 `l_targ.dist / h_targ.dist`（`adaptiveSFT_functions.R:229-232`）是 R 碼，`model_lnrm2.py` 只做到「後驗 {mu,alpha,alpha2,varZ,psi}」為止，沒有反解這一步。而且擋在它前面的 `if (post.diff$alpha2 <0)`（`:228`）本身就是死路：`find_salience_polynomial`（唯一含這段 if 的函式，`:203`）**沒有任何腳本呼叫**（`grep -rn "find_salience_polynomial"` 只中定義那一行；所有腳本呼叫的是 `find_salience_ogival`，`:180`）。| 要嘛把 `:229-232` 這 4 行连同 `if` 的語意決定（issue.md 給的 3 選 1）一起搬去 Python（用 numpy 4 行重寫），R1 才真正消失；要嘛繼續讓後驗流回 R 做反解，R1 原封不動留著。目前 repo 裡兩邊都沒做，所以是「還在」。 |
+| **R2** StanHeaders/stanc 版本 | 一半消失 | `model_lnrm2.py` 完全不呼叫 `rstan::stan()`，跑模型這條路徑不再經過 StanHeaders/stanc，這部分消失。但 `adaptiveSFT_functions.R:1-5` 是檔案最前面 5 行：`require(rstan)` / `require(diffIRT)` / `require(sft)` / `rstan_options(auto_write=TRUE)` / `options(mc.cores=...)`，其中第 4 行 `rstan_options()` 在沒裝 rstan 時直接報錯（`r_version_inventory.md` §1 已重現：`could not find function "rstan_options"`）。只要還有任何 R 腳本 `source("adaptiveSFT_functions.R")`（`simulateLNRM_ogival.R:1` 就是），**source 這個動作本身**仍需要能載入 rstan，跟 `stan()` 有沒有被呼叫無關。| 如果 R 端完全停用（連 `source()` 都不做）R2 才整個消失；只要 `adaptiveSFT_functions.R` 這個檔還被任何 R 腳本讀取，就要嘛裝好 rstan（连带面對 R2 原本的版本問題），要嘛把 `:1-5` 這幾行也拆掉/搬走。 |
+| **R3** rstan 呼叫參數（`permute=`） | 搬家 → 沒了對象 | 問題本來就只在 `simulateLNRM_ogival.R:158`（`extract(fitDiff0,"mu",permute=TRUE)`），這行呼叫的是 rstan 的 `extract()`。`model_lnrm2.py` 用 `az.extract(idata)`（issue.md §4），跟 rstan 無關。原本的 R3 沒有被「修好」，只是它所在的那個呼叫點（`simulateLNRM_ogival.R`）目前跟 Python 移植完全無關——這一行還是原封不動躺在 R 檔裡。| 若 `simulateLNRM_ogival.R:158` 這條路將來也要接上 Python 的 idata，此問題自然消失（因為呼叫者換了）；若這支 R 腳本仍要被跑，`permute=` 這個 R3 小毛病還在，跟本次移植無關，仍要單獨修成 `permuted=`。 |
+| **R4** stringsAsFactors 等 | 還在 | 跟 Stan/Python 完全無關；`r_version_inventory.md` F4/F5/F6 已確認三個陷阱都沒中招，是「不用改」而非「消失」——移植 Stan 不會讓它們變得更相關或更不相關。| 無（本來就不用做）。 |
+| **R5** lnrm2a/lnrm1/lnrm0.stan、post95.Rdata、csv 遺失 | 還在 | `model_lnrm2a.py` 檔頭明講：這是「從 R 端怎麼用它反推出來的，不是逐行移植」（`model_lnrm2a.py:1-6`），且列了 TODO-A1～A5（d 的公式、z 的對稱結構、slope/midpoint 先驗、L 是常數還是參數、mu/varZ/psi 先驗是否沿用 lnrm2）都未經原檔驗證；docstring 也寫實測 L=10 時模型講不通（accuracy 99%、R-hat>2），L=2 才正常，代表微改的地方不只 d。檔案本身仍然不存在，Python 重寫只是「用同一套積木照著行為猜」，不是「補回遺失檔案」。| 只有拿到原始 `lnrm2a.stan`/`lnrm1.stan`/`lnrm0.stan`/`post95.Rdata` 才能解掉，這件事跟語言無關。 |
+| **R6** 2018 程式 bug（L、sigmasqx、setwd、windows()、psi_color_ddm 三引數…） | 還在 | 這些 bug 全部長在 `psi Simulation_*.R`、`simulateLNRM_ogival.R`、`psiSimulation_functions.R` 這幾支模擬/繪圖腳本裡，`model_lnrm2.py` 只取代了 pipeline 裡「lnrm2.stan 擬合」那一個方框（見下圖），完全沒碰這些檔案。| 逐個修（issue.md R6 表已列修法），跟 Stan→Python 無關，要嘛繼續用 R 修，要嘛連這幾支腳本一起用 numpy 重寫。 |
+| **S1** `real x[N]` 舊陣列語法 | 消失 | Python 這條路徑完全不叫 Stan 編譯器（`model_lnrm2.py:20-26` import 的是 numpy/pytensor/pymc/arviz/numba，沒有 `pystan`/`cmdstanpy`），S1 是「stanc 編譯器拒絕舊語法」的問題，沒有 stanc 就沒有這個問題。`lnrm2.stan` 現在只是被讀出係數含意的對照文件。| 無，除非之後又要用 Stan/cmdstanr 編譯這個檔案。 |
+| **S2** lnrm2a/lnrm1/lnrm0.stan 遺失 | 還在（跟 R5 同一件事） | 跟 R5 是同一組遺失檔案，只是站在 Stan 側講。Python 重寫（`model_lnrm2a.py`）不能無中生有出原始 Stan 檔，見上面 R5 的 TODO 清單。| 同 R5：只能找原作者要檔案。 |
+| **S3** varZ 是 SD 但 `dlognormalrace` 取 sqrt | 還在，且搬成跨語言問題 | `lnrm2.stan:38-39` 把 `varZ` 直接放在 `lognormal_lpdf(...\| z[1,tr], varZ)` 的標準差位置。`model_lnrm2.py` 完全照做：`model_lnrm2.py:182` 註解明寫「名字叫 varZ，但在 Stan 是放在『標準差』位置；這裡照樣當標準差用」，`model_lnrm2.py:183` `varZ = pm.InverseGamma("varZ", ...)` 直接餵進 `lnrm_def_logpdf(t, m_win, m_lose, s)`（`model_lnrm2.py:67-73`）當 `s`（標準差）用，`model_lnrm2.py:194-202` 把這個 `varZ` 原封不動傳給 numba 核心。可是 R 端 `dlognormalrace`（`adaptiveSFT_functions.R:61-62`）寫的是 `sigma <- sqrt(sigmasq)`——把傳進來的參數當**變異數**再開根號。| 若之後把 Python 估出的 `varZ` 後驗交回 R 的 `dlognormalrace` 使用，必須先確認呼叫端要傳「SD 本身」還是「SD²」，並在交界處補一行轉換（或幫 `dlognormalrace` 加參數名區分 sd/var），否則會被多開一次根號，數值全錯。 |
+
+### Pipeline 現況圖
+
+```
+模擬資料 (moc_ddm/dfp_ddm/simdiffT)        [R]  psi Simulation_*.R, simulateLNRM_ogival.R
+        │                                        R6 全部還在這裡
+        v
+dataframe2stan                             [R]  adaptiveSFT_functions.R
+        │
+        v
+┌───────────────────────────────────────────────────────────┐
+│ lnrm2.stan 擬合          →→→  已搬成 model_lnrm2.py  [PY]  │
+│   S1 (陣列語法)  ─────────────────────────► 消失            │
+│   S3 (varZ=SD)   ─────────────────────────► 還在，且變成    │
+│                                              PY↔R 交界問題   │
+└───────────────────────────────────────────────────────────┘
+        │
+        v
+extract 後驗                                [PY] az.extract(idata)
+        │
+        ▼  ← 這裡是斷點：Python 只做到後驗，反解沒接上
+if(alpha2<0) 二次式反解 → high/low          [R]  adaptiveSFT_functions.R:228-232
+   R1 (if 長度>1)   ── 還在（且此函式根本沒人呼叫）
+   R2 (rstan 載入)  ── 一半消失：stan() 不用了，但 :1-5 的
+                        require(rstan)/rstan_options() 仍卡住 source()
+        │
+        v
+psi Simulation_*.R 用 high/low 跑 DFP       [R]
+   R3(permute=)/R4(無事)/R6 全部還在這裡
+        │
+        ✕  S2/R5：lnrm2a/lnrm1/lnrm0.stan、post95.Rdata、輸入 csv 全都沒有
+             model_lnrm2a.py 只是帶 TODO-A1~A5 的猜測重建，不算補回
+```
+
+### 結論
+
+Python 移植只把「lnrm2.stan 擬合」這一個方框換掉，真正消失的只有 S1（陣列語法，
+根本原因是 stanc 編譯器不再被呼叫）；R2 因為 `:1-5` 無條件載入 rstan，只消失了一半。
+其餘 7 項（R1、R3–R6、S2、S3）全部原封不動留在 pipeline 的其他方框裡，
+S3 甚至因為新增了 Python/R 兩套「varZ 是 SD 還是 variance」的假設而變成新的交界風險。

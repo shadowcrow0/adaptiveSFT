@@ -13,7 +13,9 @@ lnrm2a.stan 的 PyMC 重建版。
 所以 lnrm2a 跟 lnrm2 的差別只在「強度 → 難度 d」那條曲線：
 
     lnrm2   d(x) = alpha·x + alpha2·x²              (二次式，lnrm2.stan:23-24)
-    lnrm2a  d(x) = L · 1 / (1 + exp(−slope·(x − midpoint)))   (ogival / logistic，L = 10)
+    lnrm2a  d(x) = ½ · L · 1 / (1 + exp(−slope·(x − midpoint)))   (ogival / logistic，L = 10)
+            （½ 來自 simulateLNRM_ogival.R:206-209 的 c(-.5,.5)*L：L 是兩個累積器的
+              總距離 "max separation"，每個累積器各偏一半）
 
            d
         L ─┼─────────────────────────╭─────
@@ -28,7 +30,8 @@ lnrm2a.stan 的 PyMC 重建版。
 全部直接沿用 model_lnrm2.py，一行不改。
 
 TODO（拿到 lnrm2a.stan 原檔才能確認的假設，每一個都可能錯）：
-    TODO-A1  d 是不是就是 L·inv_logit(slope·(x − midpoint))？（從 :11 推的）
+    TODO-A1  [已解] d = ½·L·inv_logit(slope·(x − midpoint))。證據 simulateLNRM_ogival.R:206-209；
+             實測 L=10 回收成功（見下）。仍待原檔最終確認。
     TODO-A2  z[1] = mu − d, z[2] = mu + d 這個對稱結構有沒有沿用 lnrm2？
     TODO-A3  slope、midpoint 的先驗是什麼？這裡先給 Normal(0, 2)、Normal(0, 2)。
     TODO-A4  L 是 data 傳進去、寫死在 Stan 裡、還是也在估？這裡當常數 10。
@@ -37,12 +40,12 @@ TODO（拿到 lnrm2a.stan 原檔才能確認的假設，每一個都可能錯）
 原作者口頭確認（2026-09-24，經使用者轉述）：先有 lnrm2.stan，a/b/c 都是它的微改。
 所以「只換 d 那條曲線、其餘沿用」這個做法方向正確，但改的細節還是要原檔。
 
-實測（N=1000，DEMetropolisZ 8 chains × 2000）：
-    L = 2   d ∈ [0.1, 1.9]   五個參數全部回收，R-hat ≤ 1.07     ← Op 本身沒問題
-    L = 10  d ∈ [0.5, 9.5]   accuracy 99%、rt 中位數 0.15 s、R-hat > 2 ← 模型講不通
-L = 10 配 z = mu ∓ d 這個對稱結構，d = 8 會讓答對累積器的均值 exp(mu − 8) ≈ 0.001 s，
-資料不可能長這樣。所以 lnrm2a 的微改不只是換 d，很可能 z 的結構（TODO-A2）或
-L 的角色（TODO-A4）也不同。這一點沒有原檔無法決定。
+實測（N=1000，DEMetropolisZ 8 chains）：
+    d = L·p,  L = 2    d ∈ [0.1, 1.9]   五個參數全部回收，R-hat ≤ 1.07
+    d = L·p,  L = 10   d ∈ [0.5, 9.5]   accuracy 99%、rt 中位數 0.15 s、R-hat > 2  ← 錯的寫法
+    d = ½L·p, L = 10   d ∈ [0.2, 4.8]   五個參數全部回收，R-hat ≤ 1.01           ← 現在的寫法
+d = 8 配 z = mu ∓ d 會讓答對累積器的均值 exp(mu − 8) ≈ 0.001 s，資料不可能長這樣；
+加上 ½ 之後 d 最大 4.8，模型正常。紀錄在 log.md。
 """
 import numpy as np
 import pytensor.tensor as pt
@@ -64,8 +67,12 @@ L_MAX_SEPARATION = 10.0        # simulateLNRM_ogival.R:26  L <- 10 # max separat
 
 @jit(nopython=True, fastmath=False)
 def ogival_d(x, slope, midpoint, L):
-    """adaptiveSFT_functions.R:11  L * inv_logit(slope * (intensity - midpoint))"""
-    return L / (1.0 + math.exp(-slope * (x - midpoint)))
+    """
+    adaptiveSFT_functions.R:11      L * inv_logit(slope * (intensity - midpoint))   ← 兩個累積器的總距離
+    simulateLNRM_ogival.R:206-209   mu + c(-.5, .5) * L * inv_logit(...)            ← 每個累積器各偏 ½
+    所以 z = mu ∓ d 裡的 d 是 ½·L·inv_logit，不是 L·inv_logit（TODO-A1 已由這兩行解決）。
+    """
+    return 0.5 * L / (1.0 + math.exp(-slope * (x - midpoint)))
 
 
 @jit(nopython=True, fastmath=False)
@@ -73,7 +80,7 @@ def lnrm2a_pointwise_loglik(rt, correct, intensity, mu, slope, midpoint, varZ, p
     n = rt.shape[0]
     out = np.empty(n)
     for i in range(n):
-        d = ogival_d(intensity[i], slope, midpoint, L)       # ← 跟 lnrm2 只差這一行
+        d = ogival_d(intensity[i], slope, midpoint, L)       # ← 跟 lnrm2 只差這一行（含 ½）
         z1 = mu - d
         z2 = mu + d
         t = rt[i] - psi
@@ -90,7 +97,7 @@ def lnrm2a_random(n_trials, mu, slope, midpoint, varZ, psi, L=L_MAX_SEPARATION,
     if rng is None:
         rng = np.random.default_rng()
     intensity = rng.uniform(intensity_range[0], intensity_range[1], n_trials)
-    d = L / (1.0 + np.exp(-slope * (intensity - midpoint)))
+    d = 0.5 * L / (1.0 + np.exp(-slope * (intensity - midpoint)))   # 同 ogival_d
     t1 = psi + np.exp(rng.normal(mu - d, varZ))
     t2 = psi + np.exp(rng.normal(mu + d, varZ))
     rt = np.minimum(t1, t2)
