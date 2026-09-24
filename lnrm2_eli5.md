@@ -39,6 +39,18 @@
 
 ## 0. 先講這整件事在解決什麼問題
 
+`lnrm2.stan:1-7`
+
+```stan
+data {
+   int<lower=1> N;
+   real intensity[N];
+   int<lower=0,upper=1> correct[N];
+   real<lower=0> minRT;
+   real<lower=0> rt[N];
+}
+```
+
 你要做一個心理學實驗。實驗裡受試者要看螢幕上的東西，判斷是什麼，然後按按鈕。
 
 問題是：**同一道題目，對不同人的難度不一樣。**
@@ -167,6 +179,13 @@
 
 ## 1. 核心比喻：腦袋裡的一場賽跑
 
+`lnrm2.stan:38-39`
+
+```stan
+target += lognormal_lpdf (rt[tr] - psi | z[1,tr], varZ);
+target += lognormal_lccdf(rt[tr] - psi | z[2,tr], varZ);
+```
+
 每次你看到題目要做判斷，想像你腦袋裡有**兩個小人在賽跑**：
 
 ```
@@ -187,13 +206,6 @@
 
 **對照**
 
-程式碼裡「賽跑」長這樣（`lnrm2.stan:38-39`，答對的情況）：
-
-```stan
-target += lognormal_lpdf (rt[tr] - psi | z[1,tr], varZ);   // 贏家剛好這時到終點
-target += lognormal_lccdf(rt[tr] - psi | z[2,tr], varZ);   // 輸家這時還沒到
-```
-
 公式：
 
 ```
@@ -205,6 +217,13 @@ target += lognormal_lccdf(rt[tr] - psi | z[2,tr], varZ);   // 輸家這時還沒
 ---
 
 ## 2. 題目越明顯，賽跑越不公平
+
+`lnrm2.stan:23-24`
+
+```stan
+z[1,tr] = mu - alpha * intensity[tr] - alpha2 * square_intensity[tr];
+z[2,tr] = mu + alpha * intensity[tr] + alpha2 * square_intensity[tr];
+```
 
 題目很明顯的時候（例如螢幕上一個超大的紅色圓圈）：
 
@@ -232,13 +251,6 @@ target += lognormal_lccdf(rt[tr] - psi | z[2,tr], varZ);   // 輸家這時還沒
 
 **對照**
 
-「題目越明顯、賽跑越不公平」在程式碼裡是這兩行（`lnrm2.stan:23-24`）：
-
-```stan
-z[1,tr] = mu - alpha * intensity[tr] - alpha2 * square_intensity[tr];
-z[2,tr] = mu + alpha * intensity[tr] + alpha2 * square_intensity[tr];
-```
-
 公式：
 
 ```
@@ -253,6 +265,21 @@ z[2,tr] = mu + alpha * intensity[tr] + alpha2 * square_intensity[tr];
 ---
 
 ## 3. 程式怎麼知道答案？它用猜的
+
+`lnrm2.stan:36-45`
+
+```stan
+for ( tr in 1:N) {
+   if ( correct[tr] ) {
+      target += lognormal_lpdf (rt[tr] - psi | z[1,tr], varZ);
+      target += lognormal_lccdf(rt[tr] - psi | z[2,tr], varZ);
+   }
+   else {
+      target += lognormal_lpdf (rt[tr] - psi | z[2,tr], varZ);
+      target += lognormal_lccdf(rt[tr] - psi | z[1,tr], varZ);
+   }
+}
+```
 
 程式看不到你腦袋裡的小人。它只有你的紀錄：
 每一題有多明顯、你答對沒、你花了幾秒。
@@ -286,20 +313,7 @@ z[2,tr] = mu + alpha * intensity[tr] + alpha2 * square_intensity[tr];
 
 **對照**
 
-「打分數」在程式碼裡就是 `target +=`。每一題加一筆分數（`lnrm2.stan:36-45`）：
-
-```stan
-for ( tr in 1:N) {
-   if ( correct[tr] ) {
-      target += lognormal_lpdf (rt[tr] - psi | z[1,tr], varZ);
-      target += lognormal_lccdf(rt[tr] - psi | z[2,tr], varZ);
-   }
-   else {
-      target += lognormal_lpdf (rt[tr] - psi | z[2,tr], varZ);
-      target += lognormal_lccdf(rt[tr] - psi | z[1,tr], varZ);
-   }
-}
-```
+「打分數」就是上面那段程式碼裡的 `target +=`，每一題加一筆分數。
 
 公式（整份紀錄的總分）：
 
@@ -317,6 +331,25 @@ for ( tr in 1:N) {
 
 ## 4. 程式裡的五個數字
 
+`lnrm2.stan:13-17`
+
+```stan
+real alpha;
+real alpha2;
+real mu;
+real<lower=0> varZ;
+real<lower=0,upper=minRT> psi;
+```
+
+`lnrm2.stan:30-33`
+
+```stan
+varZ  ~ inv_gamma(1,.1);
+mu    ~ normal(0,1);
+alpha ~ normal(0,2);
+alpha2~ normal(0,1);
+```
+
 程式要猜的是五個數字。用小人比喻：
 
 | 程式裡的名字 | 意思 | 比喻 |
@@ -333,26 +366,7 @@ for ( tr in 1:N) {
 
 **對照**
 
-五個數字的宣告（`lnrm2.stan:13-17`）：
-
-```stan
-real alpha;
-real alpha2;
-real mu;
-real<lower=0> varZ;                  // 波動不能是負的
-real<lower=0,upper=minRT> psi;       // 延遲不能比最快那題還長
-```
-
-程式對它們的「事前偏好」（`lnrm2.stan:30-33`）：
-
-```stan
-varZ  ~ inv_gamma(1,.1);
-mu    ~ normal(0,1);
-alpha ~ normal(0,2);
-alpha2~ normal(0,1);
-```
-
-意思是：還沒看紀錄之前，程式猜 `mu`、`alpha`、`alpha2` 大概在 0 附近，
+上面第二段（`:30-33`）的意思是：還沒看紀錄之前，程式猜 `mu`、`alpha`、`alpha2` 大概在 0 附近，
 `alpha` 的範圍放寬一點（0±2），`alpha2` 收緊一點（0±1）。
 
 ---
@@ -360,6 +374,15 @@ alpha2~ normal(0,1);
 ## 5. 那些推導在說什麼（麻瓜版）
 
 ### A. 「某個數字變小 = 小人跑得快」
+
+`lnrm2.stan:23-24`, `:38`
+
+```stan
+z[1,tr] = mu - alpha * intensity[tr] - alpha2 * square_intensity[tr];
+z[2,tr] = mu + alpha * intensity[tr] + alpha2 * square_intensity[tr];
+...
+target += lognormal_lpdf(rt[tr] - psi | z[1,tr], varZ);
+```
 
 程式裡有個數字代表每個小人的速度。這個數字**越小跑越快**（方向跟直覺相反，這是程式的設計，不用糾結）。
 
@@ -391,6 +414,13 @@ z 跑到外面變成一個倍率，所以整條一起縮。
 
 ### B. 「兩個小人一樣快，正確率就是 50%」
 
+`lnrm2.stan:23-24`
+
+```stan
+z[1,tr] = mu - alpha * intensity[tr] - alpha2 * square_intensity[tr];
+z[2,tr] = mu + alpha * intensity[tr] + alpha2 * square_intensity[tr];
+```
+
 如果題目模糊到兩個小人**完全一樣**，誰會贏？
 
 各一半。因為他們一模一樣，你憑什麼說這個贏不是那個贏？
@@ -407,6 +437,16 @@ z 跑到外面變成一個倍率，所以整條一起縮。
 ```
 
 ### C. 「正確率只看兩件事」
+
+`lnrm2.stan:23-24`, `:38-39`
+
+```stan
+z[1,tr] = mu - alpha * intensity[tr] - alpha2 * square_intensity[tr];
+z[2,tr] = mu + alpha * intensity[tr] + alpha2 * square_intensity[tr];
+...
+target += lognormal_lpdf (rt[tr] - psi | z[1,tr], varZ);
+target += lognormal_lccdf(rt[tr] - psi | z[2,tr], varZ);
+```
 
 推導算出一個公式，它在說：**你答對多少，只由兩件事決定**：
 
@@ -434,6 +474,15 @@ z 跑到外面變成一個倍率，所以整條一起縮。
 
 ### D. 「題目變明顯，效果會飽和」
 
+`lnrm2.stan:10`, `:23-24`
+
+```stan
+square_intensity = square(intensity);
+...
+z[1,tr] = mu - alpha * intensity[tr] - alpha2 * square_intensity[tr];
+z[2,tr] = mu + alpha * intensity[tr] + alpha2 * square_intensity[tr];
+```
+
 像煮湯加鹽：
 第一撮鹽差很多，第二撮還有感，第五撮之後就沒差了。
 
@@ -452,12 +501,6 @@ z 跑到外面變成一個倍率，所以整條一起縮。
 
 **對照**
 
-`lnrm2.stan:10` 先算平方，`:23-24` 再用它：
-
-```stan
-square_intensity = square(intensity);
-```
-
 ```
       dₙ  =  α·xₙ  +  α₂·xₙ²
                        ~~~~~~
@@ -465,6 +508,13 @@ square_intensity = square(intensity);
 ```
 
 ### E. 「賽跑」這件事，程式碼裡其實沒有寫
+
+`lnrm2.stan:38-39`
+
+```stan
+target += lognormal_lpdf (rt[tr] - psi | z[1,tr], varZ);
+target += lognormal_lccdf(rt[tr] - psi | z[2,tr], varZ);
+```
 
 這一條最重要，也最容易讓人找不到方向。
 
@@ -488,12 +538,7 @@ square_intensity = square(intensity);
 
 **對照**
 
-程式碼裡就只有這兩行（`lnrm2.stan:38-39`），沒有第三行：
-
-```stan
-target += lognormal_lpdf (rt[tr] - psi | z[1,tr], varZ);   // 「A 第 3 秒到終點」
-target += lognormal_lccdf(rt[tr] - psi | z[2,tr], varZ);   // 「B 第 3 秒還在跑」
-```
+上面那兩行，第一行是「A 第 3 秒到終點」，第二行是「B 第 3 秒還在跑」：
 
 ```
       f(yₙ; wₙ, s)  ×  S(yₙ; lₙ, s)
@@ -504,6 +549,13 @@ target += lognormal_lccdf(rt[tr] - psi | z[2,tr], varZ);   // 「B 第 3 秒還�
 整份 `lnrm2.stan` 沒有任何 `min`（取最小）的指令。
 
 ### F. 「題目越明顯反應越快」不能直接這樣說
+
+`lnrm2.stan:23-24`
+
+```stan
+z[1,tr] = mu - alpha * intensity[tr] - alpha2 * square_intensity[tr];
+z[2,tr] = mu + alpha * intensity[tr] + alpha2 * square_intensity[tr];
+```
 
 題目變明顯時：答對小人變快、答錯小人變慢。
 
