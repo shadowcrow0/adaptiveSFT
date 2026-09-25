@@ -176,7 +176,7 @@ SFT 每維單獨校準，δ 應直接用 λ。這兩處合計 5 行，其餘 Psi
 | SIC 函數與 KS 檢定 | `sft/R/sic.R:132-187` | `sic()`（PoC） | **已寫** | 簽名對；**待與 R 逐位元比對** |
 | 選擇性影響（dominance） | `sft/R/sic.R:189-216` | `scipy.stats.ks_2samp(alternative=…, method='asymp')` | **已寫** | 同上 |
 | MIC ART 檢定 | `sft/R/sic.R:219-248` | 對齊 → 排名 → 兩因子 OLS 序列 SS 的 F | **已寫** | 同上 |
-| `sicGroup` 決策表（rejected models → 架構） | `sft/R/sic.R:66-98` | 40 行 | 未寫 | 逐條對照 |
+| `sicGroup` 決策表（rejected models → 架構） | `sft/R/sic.R:75-105` | 40 行 | 未寫 | 逐條對照 |
 | 整場模擬迴圈 | `psi Simulation_26MAR2019.R:473-590` | Phase 4 | 未寫 | 重現論文表格的形狀 |
 | 繪圖（survivor、SIC） | 同上 | matplotlib | 未寫 | — |
 | LNRM 擬合（`lnrm2.stan`） | `adaptiveSFT_functions.R:203-281` | `adaptivesft.fit_lnrm` / `model_lnrm2.py` | **已有** | 已驗證（各自 README / log.md） |
