@@ -369,3 +369,31 @@ Python 版不是「翻譯」而是「照意圖重寫」，這點要在 README �
 | `sft/R/sic.R`（CRAN 鏡像） | 75-105, 132-248 | 決策表、`sic` 系列 |
 | `diffIRT/R/simdiffT.r`（CRAN 鏡像） | 1-33, 6 | 拒絕抽樣、反應機率 |
 | `poc/psi_sft_poc.py` | 14-51 | Psi 去 PsychoPy 版 |
+
+---
+
+## 10. 進度（2026-09-27）
+
+P0 的決定依「以本 repo 設定為準」定案，P1–P5 已做完並推上分支，程式在 `adaptivesft/`，測試在 `tests/`：
+
+| 決定 | 定案 |
+|---|---|
+| D1 LNRM 實作 | `model_lnrm2.py` 的 numba 積木 + DEMetropolisZ，四個模型共用一個 Op（`adaptivesft/models.py`） |
+| D2 `alpha2 < 0` 語意 | `alpha2_rule` 參數，預設 `all_draws`（舊 R 成功路徑），五種可選 |
+| D3 目標值介面 | 漂移差（`h_targ / l_targ`）為主，正確率（`acc_high / acc_low`）為輔 |
+| D4 ogival 的 L | 固定 10（`simulateLNRM_ogival.R:26`） |
+| D5 `varZ` 命名 | 保留 `varZ`，明定為 SD |
+| D6 程式碼位置 | 本 repo `adaptivesft/` |
+| D7 R 對照 | 只對 `sft::sic`（`tests/data/make_sic_oracle.R`） |
+| D8 收斂測試 N | 待 P6 |
+
+| Phase | 狀態 | 證據 |
+|---|---|---|
+| P1 骨架 + LNRM | ✔ | `tests/test_models.py`：Op = numba（1e−12）、四種 link 小樣本回收 |
+| P2 race 密度 / CDF + 反解 | ✔ | `tests/test_race.py`、`tests/test_salience.py` |
+| P3 DDM | ✔ | `tests/test_ddm.py` |
+| P4 SIC | ✔（R 逐位元比對見 `tests/test_sic.py::test_against_r_oracle`） | `tests/test_sic.py` |
+| P5 Psi | ✔ | `tests/test_psi.py` |
+| P6 腳本重寫 | 未做 | — |
+| P7 文件、CI | 部分（`adaptivesft/README.md`；無 CI 設定） | — |
+
