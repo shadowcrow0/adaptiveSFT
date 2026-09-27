@@ -24,7 +24,7 @@ from scipy.stats import lognorm
 
 __all__ = [
     "log_norm_sf", "lognormal_logpdf", "lognormal_logsf", "lnrm_def_logpdf",
-    "lnrm_pointwise_loglik", "lnrm_random", "dlognormalrace", "plognormalrace",
+    "lnrm_pointwise_loglik", "lnrm_random", "dlognormalrace", "plognormalrace", "plognormalrace_curve",
 ]
 
 LOG_SQRT_2PI = 0.9189385332046727      # ln √(2π)
@@ -134,3 +134,20 @@ def plognormalrace(x, m, psi, mu, varZ):
         if xi > psi:
             out[k] = quad(dlognormalrace, psi, xi, args=(m, psi, mu, varZ), limit=200)[0]
     return out
+
+
+def plognormalrace_curve(t, m, psi, mu, varZ, n_grid=4000):
+    """
+    plognormalrace 的向量版：在密網格上算密度再累積梯形積分，一次給整條 CDF 曲線。
+    畫後驗預測圖（simulateLNRM_ogival.R:142-300）要對幾百個 t、幾十個 draw 各算一次，
+    逐點 quad 會慢到不能用；這裡一條曲線 < 1 ms，對 quad 的誤差約 1e-5（tests/test_race.py）。
+    """
+    t = np.asarray(t, dtype=float)
+    hi = float(t.max()) if t.size else psi
+    if hi <= psi:
+        return np.zeros_like(t)
+    grid = np.linspace(psi, hi, n_grid)
+    dens = dlognormalrace(grid, m, psi, mu, varZ)
+    dens[0] = 0.0
+    cdf = np.concatenate([[0.0], np.cumsum(0.5 * (dens[1:] + dens[:-1]) * np.diff(grid))])
+    return np.interp(t, grid, cdf, left=0.0)

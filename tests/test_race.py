@@ -43,3 +43,13 @@ def test_plognormalrace_matches_monte_carlo():
     got = plognormalrace(xs, 0, PSI, mu2, [VARZ, VARZ])
     assert np.allclose(got, mc, atol=0.005)
     assert np.all(plognormalrace([PSI - 0.01, PSI], 0, PSI, mu2, [VARZ, VARZ]) == 0.0)
+
+
+def test_plognormalrace_curve_matches_quad():
+    from adaptivesft.race import plognormalrace_curve
+    d = 0.8
+    mu2 = np.array([MU - d, MU + d])
+    xs = np.linspace(0.0, 5.0, 50)
+    for m in (0, 1):
+        assert np.allclose(plognormalrace_curve(xs, m, PSI, mu2, [VARZ, VARZ]),
+                           plognormalrace(xs, m, PSI, mu2, [VARZ, VARZ]), atol=1e-4)

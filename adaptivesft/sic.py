@@ -16,6 +16,8 @@ MODEL_NAMES = ("ParallelOR", "ParallelAND", "SerialOR", "SerialAND", "Coactive")
 
 def ecdf(sample):
     s = np.sort(np.asarray(sample, dtype=float))
+    if s.size == 0:
+        return lambda t: np.zeros(np.shape(np.asarray(t, dtype=float)))
     return lambda t: np.searchsorted(s, np.asarray(t, dtype=float), side="right") / s.size
 
 
