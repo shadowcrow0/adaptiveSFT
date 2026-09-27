@@ -253,6 +253,27 @@ Python 版不是「翻譯」而是「照意圖重寫」，這點要在 README �
    └── poc/                              ← 移植完成後刪除或搬進 tests
 ```
 
+### 5.1 依賴
+
+全部 `pip` 可裝；`requirements.txt` 已釘住前六個（本 session 實裝、實跑）。
+
+| 套件 | 版本 | 用在哪 | 必要 |
+|---|---|---|---|
+| `numpy` | 2.4.6 | 全部 | ✔ |
+| `scipy` | 1.17.1 | `norm/lognorm`、`quad`、`ks_2samp`、`erfinv`、`optimize` | ✔ |
+| `pymc` | 5.28.5 | `fit_lnrm`、`pm.sample`、`CustomDist / Potential` | ✔ |
+| `pytensor` | 2.38.3 | **PyMC 的計算圖後端**；`model_lnrm2.py:21-22` 的自訂 `pt.Op` 與 `pytensor.graph.Apply`、`adaptivesft/models.py:43` 的 `pt.where / pt.erfc` 都直接用它。PyMC 會把它當依賴帶進來，但 `pt.Op` 介面隨版本變，**必須釘版本** | ✔ |
+| `numba` | 0.65.1 | `model_lnrm2.py` 的逐題 logp（`race.py` oracle） | ✔（oracle 測試） |
+| `arviz` | 0.23.4 | `az.summary`、`InferenceData` | ✔ |
+| `statsmodels` | — | `lowess`（收斂圖，取代 R `loess`） | 只有 P6 |
+| `matplotlib` | — | 全部圖 | 只有 P6 |
+| `joblib` | — | 收斂測試平行 | 只有 P6 |
+| `colour-science` | — | `adaptivesft.color` 的 ΔE00 | 可選（風險 8） |
+| `pytest` | — | `tests/` | 開發 |
+| `psychopy` | — | 只有真人實驗腳本 | 不進套件依賴 |
+
+不需要：R、rstan、cmdstan、pystan、diffIRT、sft。
+
 ---
 
 ## 6. 分階段規劃
