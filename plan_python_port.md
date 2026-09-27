@@ -189,12 +189,12 @@ Houpt 的目標值是**漂移差**（`simulateLNRM_ogival.R:24-25`：1.3 / 8.0�
 ### 3.5 `DDM.pCorrect` 差一個 2 倍
 
 `psi Simulation_26MAR2019.R:117` 用 `1/(1+exp(−2·a·s·v))` 當「真」曲線，`simdiffT.r:6` 實際是
-`1/(1+exp(−a·drift))`。重現論文的「真 α/β」（`:130-136` 的 `optim`）時會差在這裡。
+`1/(1+exp(−a·drift))`。重現論文的「真 α/β」（`:120-121` 的 `optim`）時會差在這裡。
 
 ### 3.6 原作者自己的 `.99` 也落在刺激範圍外
 
 `psi Simulation_25JUNE2018.R:174, 177`：`highSalience.color = 101.64`、`lowSalience.color = 53.65`，
-刺激範圍是 [−55, 50]（`:170`）。2019 版改成硬寫 `50` / `16.45`（`26MAR2019.R:208, 211`）——
+刺激範圍是 [−55, 50]（`:171`）。2019 版改成硬寫 `50` / `16.45`（`26MAR2019.R:208, 211`）——
 即直接用範圍上限當 H。這是 `plan_grtv3ada_psi_python.md` §6 R3 的獨立證據。
 
 ### 3.7 未定義變數（issue R6）
@@ -339,8 +339,8 @@ Python 版不是「翻譯」而是「照意圖重寫」，這點要在 README �
 | `lnrm2.stan` | 38 | `varZ` 在標準差位 |
 | `simulateLNRM_ogival.R` | 14, 24-26, 62, 86, 109-111, 128-135, 148, 157, 204, 213, 258, 281, 496-513, 571-573 | §1.4、§3.4 |
 | `psiSimulation_functions.R` | 3, 5-168, 171, 173-208, 214-373, 378-413, 417-419 | §1.5 |
-| `psi Simulation_25JUNE2018.R` | 2, 170, 174, 177 | §3.6 |
-| `psi Simulation_26MAR2019.R` | 117, 130-136, 195, 208-237, 507, 510, 609-1003 | §1.6、§3.5 |
+| `psi Simulation_25JUNE2018.R` | 2, 171, 174, 177 | §3.6 |
+| `psi Simulation_26MAR2019.R` | 117, 120-121, 195, 208-237, 507, 510, 609-1003 | §1.6、§3.5 |
 | `model_lnrm2.py` | 67-73 | numba race logpdf |
 | `model_lnrm2a.py` | 1-45 | TODO-A1–A5 |
 | `Visual_AudioWM/adaptivesft/color.py` | 19 | `import colour` |
