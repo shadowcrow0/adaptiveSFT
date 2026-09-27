@@ -16,3 +16,7 @@ cd poc && ../venv/bin/python psi_sft_poc.py 1
 ```
 
 實測（2026-09-25，numpy 2.4.6 / scipy 1.17.1）：三支合計約 3 分鐘。
+
+| `lnrm_race_poc.py` | `dlognormalrace / plognormalrace` 的 scipy 版，對總積分、封閉解正確率、蒙地卡羅 CDF | `adaptiveSFT_functions.R:61-111` |
+
+對應文件：`../plan_python_port.md` §2.3。
