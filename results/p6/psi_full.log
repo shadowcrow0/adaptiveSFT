@@ -1,0 +1,220 @@
+
+=== a 慣例：separation（simdiffT 收到的 boundary separation = a）===
+    [50 × 300 Psi] 570.2 s
+  「真」α=63.03 β=18.93（此慣例下範圍上限的 P(correct)=0.911）
+          trial alpha_mean  alpha_q05  alpha_q95  beta_mean   beta_q05   beta_q95
+              1     65.283     56.831     77.961      4.892      4.892      4.892
+             10     63.680     53.266     77.331      6.158      3.297      7.623
+             30     63.096     55.586     69.409      8.130      7.488      8.673
+             60     63.180     58.517     67.969      8.647      8.297      9.035
+            100     63.089     59.178     66.650      8.903      8.621      9.119
+            144     63.160     60.279     66.231      9.075      8.935      9.220
+            300     63.133     61.470     65.517      9.275      9.210      9.330
+    wrote /tmp/claude-0/-home-user/80b2a530-5dd9-5da8-85f0-4087096f4000/scratchpad/out_full/psi_convergence/Psi_convergence_separation.png
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      1.012     21.400      5.953     31.230     56.061     86.288      0.931     28.938     46.706      0.767     50.000
+    orientation     63.600      9.307     63.035     18.929     87.541    111.727      0.887     75.745     87.735      0.758     90.000
+    ⚠ colour: 目標 0.99: x = 56.061 落在刺激範圍 [-55.0, 50.0] 之外
+     condition     Dplus   p_Dplus    Dminus  p_Dminus       MIC     p_MIC        SI predicted
+          COA-     0.303     0.012     0.050     0.886     0.141     0.000      PassParallelOR
+        PAR-OR     0.202     0.177     0.049     0.903     0.049     0.175 Ambiguous  SerialOR
+       PAR-AND     0.087     0.788     0.239     0.164    -0.052     0.398 Ambiguous  SerialOR
+        SER-OR     0.203     0.187     0.121     0.551    -0.032     0.562 Ambiguous  SerialOR
+       SER-AND     0.133     0.551     0.240     0.142    -0.096     0.898 Ambiguous  SerialOR
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      6.600     21.622      5.953     31.230     62.220     86.288      0.950     34.815     46.706      0.832     50.000
+    orientation     61.079      9.327     63.035     18.929     85.071    111.727      0.870     73.250     87.735      0.710     90.000
+    ⚠ colour: 目標 0.99: x = 62.220 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      3.339     21.526      5.953     31.230     58.713     86.288      0.930     31.429     46.706      0.795     50.000
+    orientation     64.879      9.248     63.035     18.929     88.669    111.727      0.883     76.947     87.735      0.759     90.000
+    ⚠ colour: 目標 0.99: x = 58.713 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      4.298     21.617      5.953     31.230     59.906     86.288      0.940     32.507     46.706      0.782     50.000
+    orientation     64.008      9.243     63.035     18.929     87.785    111.727      0.893     76.070     87.735      0.741     90.000
+    ⚠ colour: 目標 0.99: x = 59.906 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      4.418     21.097      5.953     31.230     58.688     86.288      0.944     31.948     46.706      0.793     50.000
+    orientation     63.365      9.288     63.035     18.929     87.257    111.727      0.892     75.485     87.735      0.755     90.000
+    ⚠ colour: 目標 0.99: x = 58.688 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      5.447     21.624      5.953     31.230     61.071     86.288      0.935     33.664     46.706      0.811     50.000
+    orientation     61.815      9.271     63.035     18.929     85.665    111.727      0.860     73.914     87.735      0.697     90.000
+    ⚠ colour: 目標 0.99: x = 61.071 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      7.380     21.500      5.953     31.230     62.686     86.288      0.945     35.436     46.706      0.804     50.000
+    orientation     63.270      9.265     63.035     18.929     87.104    111.727      0.875     75.361     87.735      0.730     90.000
+    ⚠ colour: 目標 0.99: x = 62.686 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      1.966     21.517      5.953     31.230     57.316     86.288      0.947     30.044     46.706      0.769     50.000
+    orientation     63.029      9.257     63.035     18.929     86.842    111.727      0.896     75.109     87.735      0.746     90.000
+    ⚠ colour: 目標 0.99: x = 57.316 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      5.824     21.674      5.953     31.230     61.577     86.288      0.933     34.107     46.706      0.801     50.000
+    orientation     60.233      9.262     63.035     18.929     84.058    111.727      0.846     72.319     87.735      0.697     90.000
+    ⚠ colour: 目標 0.99: x = 61.577 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      5.278     21.659      5.953     31.230     60.993     86.288      0.939     33.542     46.706      0.812     50.000
+    orientation     63.030      9.291     63.035     18.929     86.929    111.727      0.873     75.153     87.735      0.742     90.000
+    ⚠ colour: 目標 0.99: x = 60.993 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      4.251     21.492      5.953     31.230     59.534     86.288      0.936     32.295     46.706      0.804     50.000
+    orientation     61.829      9.241     63.035     18.929     85.600    111.727      0.875     73.888     87.735      0.720     90.000
+    ⚠ colour: 目標 0.99: x = 59.534 落在刺激範圍 [-55.0, 50.0] 之外
+         Subject   Condition   D+ Pvalue   D- Pvalue  MIC Pvalue   Predicted          SI
+               1      PAR.OR       0.926       0.304       0.385    SerialOR   Ambiguous
+               1     PAR.AND       0.480       0.574       0.780    SerialOR   Ambiguous
+               1      SER.OR       0.067       0.478       0.219    SerialOR        Fail
+               1     SER.AND       0.814       0.696       0.901    SerialOR   Ambiguous
+               2      PAR.OR       0.814       0.525       0.649    SerialOR   Ambiguous
+               2     PAR.AND       0.138       0.244       0.642    SerialOR   Ambiguous
+               2      SER.OR       0.916       0.233       0.240    SerialOR   Ambiguous
+               2     SER.AND       0.623       0.299       0.879    SerialOR   Ambiguous
+               3      PAR.OR       0.901       0.525       0.759    SerialOR   Ambiguous
+               3     PAR.AND       0.693       0.532       0.991    SerialOR   Ambiguous
+               3      SER.OR       0.136       0.806       0.516    SerialOR   Ambiguous
+               3     SER.AND       0.534       0.736       0.349    SerialOR   Ambiguous
+               4      PAR.OR       0.437       0.164       0.716    SerialOR   Ambiguous
+               4     PAR.AND       0.933       0.215       0.387    SerialOR   Ambiguous
+               4      SER.OR       0.732       0.177       0.369    SerialOR   Ambiguous
+               4     SER.AND       0.272       0.633       0.322    SerialOR   Ambiguous
+               5      PAR.OR       0.848       0.201       0.223    SerialOR   Ambiguous
+               5     PAR.AND       0.537       0.715       0.951    SerialOR   Ambiguous
+               5      SER.OR       0.314       0.824       0.606    SerialOR   Ambiguous
+               5     SER.AND       0.987       0.050       0.066 ParallelAND   Ambiguous
+               6      PAR.OR       0.715       0.637       0.889    SerialOR   Ambiguous
+               6     PAR.AND       0.676       0.794       0.801    SerialOR   Ambiguous
+               6      SER.OR       0.994       0.009       0.003 ParallelAND   Ambiguous
+               6     SER.AND       0.048       0.999       0.004  ParallelOR   Ambiguous
+               7      PAR.OR       0.538       0.134       0.571    SerialOR   Ambiguous
+               7     PAR.AND       0.634       0.414       0.961    SerialOR   Ambiguous
+               7      SER.OR       0.732       0.549       0.922    SerialOR   Ambiguous
+               7     SER.AND       0.436       0.918       0.523    SerialOR   Ambiguous
+               8      PAR.OR       0.391       0.379       0.946    SerialOR   Ambiguous
+               8     PAR.AND       0.912       0.032       0.049 ParallelAND   Ambiguous
+               8      SER.OR       0.954       0.086       0.058    SerialOR   Ambiguous
+               8     SER.AND       0.464       0.502       0.833    SerialOR   Ambiguous
+               9      PAR.OR       0.866       0.685       0.987    SerialOR   Ambiguous
+               9     PAR.AND       0.066       0.715       0.261    SerialOR   Ambiguous
+               9      SER.OR       0.041       0.852       0.314  ParallelOR        Fail
+               9     SER.AND       0.716       0.030       0.150 ParallelAND   Ambiguous
+              10      PAR.OR       0.375       0.341       0.804    SerialOR   Ambiguous
+              10     PAR.AND       0.290       0.525       0.716    SerialOR   Ambiguous
+              10      SER.OR       0.880       0.089       0.088    SerialOR   Ambiguous
+              10     SER.AND       0.963       0.091       0.311    SerialOR   Ambiguous
+
+=== a 慣例：threshold（simdiffT 收到的 boundary separation = 2a）===
+    [50 × 300 Psi] 632.3 s
+  「真」α=63.01 β=9.65（此慣例下範圍上限的 P(correct)=0.990）
+          trial alpha_mean  alpha_q05  alpha_q95  beta_mean   beta_q05   beta_q95
+              1     65.705     56.831     77.961      4.892      4.892      4.892
+             10     63.779     58.273     67.941      5.765      3.718      7.625
+             30     63.425     59.393     68.740      7.359      5.792      8.336
+             60     63.152     60.068     67.191      8.137      7.171      8.673
+            100     63.136     60.349     66.217      8.553      7.981      8.888
+            144     63.190     60.550     65.597      8.729      8.162      9.064
+            300     62.990     61.815     64.699      9.077      8.797      9.256
+    wrote /tmp/claude-0/-home-user/80b2a530-5dd9-5da8-85f0-4087096f4000/scratchpad/out_full/psi_convergence/Psi_convergence_threshold.png
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      5.919     16.190      6.000     15.775     47.564     46.578      0.984     27.045     26.585      0.881     50.000
+    orientation     63.195      9.201     63.006      9.652     86.863     87.835      0.977     75.201     75.601      0.868     90.000
+     condition     Dplus   p_Dplus    Dminus  p_Dminus       MIC     p_MIC        SI predicted
+          COA-     0.175     0.219     0.052     0.873     0.098     0.095      Pass  SerialOR
+        PAR-OR     0.245     0.061     0.041     0.925     0.157     0.031 Ambiguous        NA
+       PAR-AND     0.047     0.911     0.240     0.086    -0.318     0.168 Ambiguous  SerialOR
+        SER-OR     0.181     0.226     0.111     0.569    -0.043     0.579 Ambiguous  SerialOR
+       SER-AND     0.116     0.553     0.106     0.608    -0.042     0.468 Ambiguous  SerialOR
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      4.039     18.001      6.000     15.775     50.343     46.578      0.987     27.529     26.585      0.883     50.000
+    orientation     62.782      9.157     63.006      9.652     86.337     87.835      0.976     74.731     75.601      0.871     90.000
+    ⚠ colour: 目標 0.99: x = 50.343 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      6.043     17.718      6.000     15.775     51.618     46.578      0.990     29.163     26.585      0.897     50.000
+    orientation     63.237      9.251     63.006      9.652     87.034     87.835      0.976     75.309     75.601      0.881     90.000
+    ⚠ colour: 目標 0.99: x = 51.618 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      5.109     17.845      6.000     15.775     51.013     46.578      0.991     28.395     26.585      0.893     50.000
+    orientation     63.206      9.195     63.006      9.652     86.858     87.835      0.980     75.204     75.601      0.860     90.000
+    ⚠ colour: 目標 0.99: x = 51.013 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      2.880     17.174      6.000     15.775     47.058     46.578      0.984     25.291     26.585      0.862     50.000
+    orientation     63.310      9.142     63.006      9.652     86.827     87.835      0.980     75.240     75.601      0.861     90.000
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      6.196     17.940      6.000     15.775     52.344     46.578      0.989     29.606     26.585      0.889     50.000
+    orientation     62.498      8.927     63.006      9.652     85.460     87.835      0.980     74.146     75.601      0.857     90.000
+    ⚠ colour: 目標 0.99: x = 52.344 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      4.636     16.337      6.000     15.775     46.661     46.578      0.978     25.955     26.585      0.881     50.000
+    orientation     63.773      8.707     63.006      9.652     86.171     87.835      0.981     75.135     75.601      0.886     90.000
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      6.133     15.308      6.000     15.775     45.510     46.578      0.985     26.108     26.585      0.873     50.000
+    orientation     63.027      8.927     63.006      9.652     85.990     87.835      0.971     74.676     75.601      0.871     90.000
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      5.465     18.837      6.000     15.775     53.921     46.578      0.992     30.046     26.585      0.915     50.000
+    orientation     63.810      9.288     63.006      9.652     87.702     87.835      0.977     75.930     75.601      0.880     90.000
+    ⚠ colour: 目標 0.99: x = 53.921 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      6.172     18.338      6.000     15.775     53.345     46.578      0.994     30.103     26.585      0.916     50.000
+    orientation     62.471      9.226     63.006      9.652     86.204     87.835      0.976     74.510     75.601      0.854     90.000
+    ⚠ colour: 目標 0.99: x = 53.345 落在刺激範圍 [-55.0, 50.0] 之外
+            dim      alpha       beta alpha_true  beta_true          H     H_true      acc_H          L     L_true      acc_L  range_max
+         colour      8.110     16.949      6.000     15.775     51.710     46.578      0.988     30.227     26.585      0.918     50.000
+    orientation     61.541      9.152     63.006      9.652     85.084     87.835      0.975     73.484     75.601      0.837     90.000
+    ⚠ colour: 目標 0.99: x = 51.710 落在刺激範圍 [-55.0, 50.0] 之外
+         Subject   Condition   D+ Pvalue   D- Pvalue  MIC Pvalue   Predicted          SI
+               1      PAR.OR       0.748       0.099       0.897    SerialOR   Ambiguous
+               1     PAR.AND       0.564       0.820       0.729    SerialOR   Ambiguous
+               1      SER.OR       0.614       0.643       0.424    SerialOR   Ambiguous
+               1     SER.AND       0.452       0.325       0.704    SerialOR   Ambiguous
+               2      PAR.OR       0.419       0.252       0.572    SerialOR   Ambiguous
+               2     PAR.AND       0.125       0.742       0.108    SerialOR   Ambiguous
+               2      SER.OR       0.554       0.605       0.346    SerialOR   Ambiguous
+               2     SER.AND       0.799       0.535       0.966    SerialOR        Pass
+               3      PAR.OR       0.042       0.979       0.010  ParallelOR   Ambiguous
+               3     PAR.AND       0.610       0.508       0.938    SerialOR   Ambiguous
+               3      SER.OR       0.154       0.980       0.090    SerialOR   Ambiguous
+               3     SER.AND       0.319       0.857       0.125    SerialOR        Pass
+               4      PAR.OR       0.299       0.826       0.215    SerialOR   Ambiguous
+               4     PAR.AND       0.485       0.381       0.200    SerialOR        Pass
+               4      SER.OR       0.460       0.386       0.958    SerialOR   Ambiguous
+               4     SER.AND       0.358       0.952       0.070    SerialOR        Pass
+               5      PAR.OR       0.750       0.822       0.598    SerialOR   Ambiguous
+               5     PAR.AND       0.923       0.119       0.537    SerialOR   Ambiguous
+               5      SER.OR       0.535       0.702       0.379    SerialOR   Ambiguous
+               5     SER.AND       0.818       0.419       0.806    SerialOR   Ambiguous
+               6      PAR.OR       0.061       0.830       0.008          NA   Ambiguous
+               6     PAR.AND       0.557       0.304       0.665    SerialOR        Pass
+               6      SER.OR       0.789       0.361       0.879    SerialOR   Ambiguous
+               6     SER.AND       0.718       0.715       0.981    SerialOR   Ambiguous
+               7      PAR.OR       0.191       0.130       0.673    SerialOR   Ambiguous
+               7     PAR.AND       0.500       0.026       0.507 ParallelAND   Ambiguous
+               7      SER.OR       0.985       0.014       0.027 ParallelAND   Ambiguous
+               7     SER.AND       0.779       0.095       0.560    SerialOR   Ambiguous
+               8      PAR.OR       0.123       0.969       0.019          NA   Ambiguous
+               8     PAR.AND       0.921       0.236       0.568    SerialOR   Ambiguous
+               8      SER.OR       0.236       0.981       0.096    SerialOR   Ambiguous
+               8     SER.AND       0.707       0.287       0.887    SerialOR        Pass
+               9      PAR.OR       0.653       0.379       0.768    SerialOR   Ambiguous
+               9     PAR.AND       0.452       0.844       0.287    SerialOR        Pass
+               9      SER.OR       0.972       0.054       0.099    SerialOR   Ambiguous
+               9     SER.AND       0.624       0.040       0.543 ParallelAND   Ambiguous
+              10      PAR.OR       0.101       0.893       0.365    SerialOR   Ambiguous
+              10     PAR.AND       0.510       0.347       0.631    SerialOR   Ambiguous
+              10      SER.OR       0.280       0.642       0.128    SerialOR        Pass
+              10     SER.AND       0.491       0.662       0.298    SerialOR        Pass
+    wrote /tmp/claude-0/-home-user/80b2a530-5dd9-5da8-85f0-4087096f4000/scratchpad/out_full/psi_convergence/psi_convergence.csv
+
+=== 兩種慣例的 Psi 校準對照 ===
+      convention         dim        beta   beta_true           H      H_true       acc_H           L      L_true       acc_L   range_max
+      separation      colour      21.400      31.230      56.061      86.288       0.931      28.938      46.706       0.767      50.000
+      separation orientation       9.307      18.929      87.541     111.727       0.887      75.745      87.735       0.758      90.000
+       threshold      colour      16.190      15.775      47.564      46.578       0.984      27.045      26.585       0.881      50.000
+       threshold orientation       9.201       9.652      86.863      87.835       0.977      75.201      75.601       0.868      90.000
+    wrote /tmp/claude-0/-home-user/80b2a530-5dd9-5da8-85f0-4087096f4000/scratchpad/out_full/psi_dfp/calibration_by_convention.csv
+    wrote /tmp/claude-0/-home-user/80b2a530-5dd9-5da8-85f0-4087096f4000/scratchpad/out_full/psi_dfp/sic_by_convention.csv
+    wrote /tmp/claude-0/-home-user/80b2a530-5dd9-5da8-85f0-4087096f4000/scratchpad/out_full/psi_full_experiment/Psi_Simulation_SFTresults.csv
+
+real	29m19.759s
+user	27m14.572s
+sys	1m44.032s
+exit 0

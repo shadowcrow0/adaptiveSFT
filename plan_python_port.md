@@ -385,7 +385,7 @@ P0 的決定依「以本 repo 設定為準」定案，P1–P5 已做完並推上
 | D5 `varZ` 命名 | 保留 `varZ`，明定為 SD |
 | D6 程式碼位置 | 本 repo `adaptivesft/` |
 | D7 R 對照 | 只對 `sft::sic`（`tests/data/make_sic_oracle.R`） |
-| D8 收斂測試 N | 待 P6 |
+| D8 收斂測試 N | 8 個 log 間距的點（3–300），`--full` 才 1…300 |
 
 | Phase | 狀態 | 證據 |
 |---|---|---|
@@ -394,6 +394,6 @@ P0 的決定依「以本 repo 設定為準」定案，P1–P5 已做完並推上
 | P3 DDM | ✔ | `tests/test_ddm.py` |
 | P4 SIC | ✔（R 逐位元比對見 `tests/test_sic.py::test_against_r_oracle`） | `tests/test_sic.py` |
 | P5 Psi | ✔ | `tests/test_psi.py` |
-| P6 腳本重寫 | 未做 | — |
-| P7 文件、CI | 部分（`adaptivesft/README.md`；無 CI 設定） | — |
+| P6 腳本重寫 | ✔（兩種 a 慣例並排） | `scripts/`、`p6_results.md`、`results/p6/` |
+| P7 文件、CI | 部分（`adaptivesft/README.md`、`scripts/README.md`；無 CI 設定） | — |
 
