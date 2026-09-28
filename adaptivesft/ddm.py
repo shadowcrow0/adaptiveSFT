@@ -59,13 +59,15 @@ def _euler_trial(a, drift, vp, rng, dt=2.5e-4, max_t=60.0):
 
 
 def simdiffT(N, a, mv, sv, ter, vp=1.0, max_iter=19999, eps=1e-15, rng=None, a_is_separation=True,
-             on_fail="euler", euler_above=10.0):
+             on_fail="euler", euler_above=20.0):
     """
     diffIRT/R/simdiffT.r 逐行。回傳 (rt, x)，x = 1 表示到上界。a_is_separation=False 時傳 2a 進去。
 
-    a·|drift| 很大時 diffIRT 的拒絕抽樣不可用：級數 (1−u)^(FF·(2i+1)²) 在 FF → 0 時收斂極慢，
-    接受率也趨近 0（R 會跑很久然後 stop()）。所以：
-      a·|drift| > euler_above          直接用 Wiener 過程模擬那一試（P(correct) 已 > 0.99995）
+    拒絕抽樣的接受率隨 a·|drift| 急降（實測 20 試：a·drift 6 → 0.00 s，19 → 0.07 s，22 → 0.2 s，
+    26 → 1.7 s，30 → 19999 次拒絕後失敗，R 會 stop()）。原作者的腳本都在 a·drift ≤ 6（MOC）到 ~20
+    （COA 把兩個 drift 相加）以內，所以 R 從來沒撞到；本 repo 的 threshold 慣例（a 變 2a）和
+    重建版 lnrm2a 反解出的範圍外 H 才會撞到。處理：
+      a·|drift| > euler_above          直接用 Wiener 過程模擬那一試（P(correct) 已 > 1 − 2e−9）
       拒絕抽樣達 max_iter 仍失敗       on_fail="euler" 同上並警告一次；"raise" 照 R 丟 RuntimeError
     """
     rng = np.random.default_rng() if rng is None else rng

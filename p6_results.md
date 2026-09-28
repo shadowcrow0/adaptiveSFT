@@ -131,9 +131,13 @@ RT 分離（`plan_grtv3ada_psi_python.md` §5.3 的結論在完整規模下重�
 
 ## 4. 移植上的發現（本輪修掉的）
 
-- `diffIRT::simdiffT` 的拒絕抽樣在 a·|drift| ≳ 10 時級數收斂極慢、接受率趨近 0（R 會跑很久後
-  `stop("Rejection algorithm failed")`）。`adaptivesft/ddm.py` 在 a·|drift| > 10 直接改用 Wiener 過程
-  模擬（`tests/test_ddm.py` 對照解析式 P(correct) 與平均 RT）。R 的 `simulateLNRM_ogival.R` 用 a=3、
-  v=2 配 COA 架構（drift 相加）一定會碰到這個。
+- `diffIRT::simdiffT` 的拒絕抽樣接受率隨 a·|drift| 急降。實測 20 試：a·drift 6 → 0.00 s、19 → 0.07 s、
+  22 → 0.2 s、26 → 1.7 s、30 → 19999 次拒絕後 `stop("Rejection algorithm failed")`。
+  **原作者的 R 沒撞到是因為從沒進到那個區域**：Psi 腳本 a=1.45、v=1.6，範圍上限 a·drift = 2.3；
+  `simulateLNRM_ogival.R` a=3、v=2，MOC 資料 a·drift ≤ 6，DFP 的 H 若在範圍內單通道 ≤ 6、COA 相加 ≤ 12。
+  本 repo 撞到的三個原因都是新的：threshold 慣例把 a 變成 2a；重建版 lnrm2a 對 `h_targ = 8.0` 反解出
+  範圍外的 H（scaled 1.8，drift 3.6）；COA 再把兩個 drift 相加 → a·drift 21–38。
+  `adaptivesft/ddm.py` 在 a·|drift| > 20 直接改用 Wiener 過程模擬（`tests/test_ddm.py` 對照解析式
+  P(correct) 與平均 RT），20 以內照 diffIRT 原演算法。
 - 後驗預測圖逐點 `integrate`（R :81-111）在 Python 要跑幾分鐘；改成網格累積積分
   `plognormalrace_curve`，一條曲線 1 ms，對 `quad` 誤差 1e−5。
