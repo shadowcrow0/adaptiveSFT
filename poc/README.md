@@ -20,3 +20,6 @@ cd poc && ../venv/bin/python psi_sft_poc.py 1
 | `lnrm_race_poc.py` | `dlognormalrace / plognormalrace` 的 scipy 版，對總積分、封閉解正確率、蒙地卡羅 CDF | `adaptiveSFT_functions.R:61-111` |
 
 對應文件：`../plan_python_port.md` §2.3。
+
+> 注意：`psi_sft_poc.py` 裡的 Psi 是抄 `Visual_AudioWM/AGRT.py` 的，只是當時的概念驗證。
+> 正式套件 `adaptivesft/psi.py` **不用 AGRT 的方式**，是 `psiSimulation_functions.R` 的逐行移植（網格照 R）。

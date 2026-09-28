@@ -10,8 +10,9 @@ psi Simulation_26MAR2019.R 的 Python 版（2018 版被它取代，不移植）�
 這裡對每種 a 慣例各算一條真曲線（ddm_p_correct(a_is_separation=…)），所以慣例選對時
 Psi 的估計應該收斂到「真」值，選錯時不會 —— 這就是 decisions_for_author.md A 要看的數字。
 
-參數照 psiSimulation_functions.R:10-18, 93-99, 179, 214-225：顏色範圍 −55–50、thres50 6；
-方位範圍 45–90、thres50 63；a=1.45, v=1.6, ter=.1, sdv=.25；lapse .01；100 格網格（R 是每 1 單位一格）。
+參數照 psiSimulation_functions.R:10-18, 93-99, 179, 214-225：顏色 x −55–50（步 1）、α −25–45、β 1–50、
+thres50 6；方位 x 45–90（步 .5）、α 45.5–75、β 1–10、thres50 63；a=1.45, v=1.6, ter=.1, sdv=.25；lapse .01。
+網格常數在 adaptivesft/psi.py 的 GRIDS，跟 R 逐字相同。
 """
 import functools
 import os
@@ -22,13 +23,12 @@ from scipy import optimize
 from _common import (ARCHS, Timer, base_parser, conventions, outdir, plot_survivor_sic, print_table,
                      sic_row, write_csv)
 from adaptivesft.ddm import ddm_p_correct, dfp_ddm, simdiffT
-from adaptivesft.psi import make_psi, pm_function, salience_levels
+from adaptivesft.psi import GRIDS, make_psi, pm_function, salience_levels
 
 A, V, TER, SDV = 1.45, 1.6, 0.1, 0.25            # psiSimulation_functions.R:96-99
 LAPSE = 0.01                                     # :12, :18
 DIMS = {"colour": ((-55.0, 50.0), 6.0), "orientation": ((45.0, 90.0), 63.0)}
 P_HIGH, P_LOW = 0.99, 0.90                       # :183-184
-STEPS = 100
 
 
 def scaled(x, dim):
@@ -46,15 +46,14 @@ def true_alpha_beta(dim, sep):
     return float(r.x[0]), float(r.x[1]), float(pc[-1])
 
 
-def run_psi(dim, n_trials, sep, rng, beta_max=None):
-    """Est.Trial.Psi.*（:5-168）：DDM 受試者回答 Psi 出的題。回傳每試後的 (α, β) 軌跡。"""
-    x_range, _ = DIMS[dim]
-    psi = make_psi(x_range, STEPS, LAPSE, beta_max=beta_max)
+def run_psi(dim, n_trials, sep, rng):
+    """Est.Trial.Psi.*（:5-168）：DDM 受試者回答 Psi 出的題（:104-106）。回傳每試後的 (α, β) 軌跡（:154-163）。"""
+    psi = make_psi(dim)                                              # R 的網格常數
     traj = np.empty((n_trials, 2))
     for t in range(n_trials):
-        _, r = simdiffT(1, A, scaled(psi.nextIntensity, dim) * V, SDV, TER, rng=rng, a_is_separation=sep)
+        _, r = simdiffT(1, A, scaled(psi.next_intensity, dim) * V, SDV, TER, rng=rng, a_is_separation=sep)
         psi.update(int(r[0]))
-        traj[t] = psi.estimateLambda()
+        traj[t] = psi.estimate()
     return traj
 
 
@@ -72,7 +71,9 @@ def sec_convergence(args, conv, sep, rng):
                      "beta_mean": float(trajs[:, t, 1].mean()), "beta_q05": float(np.quantile(trajs[:, t, 1], .05)),
                      "beta_q95": float(np.quantile(trajs[:, t, 1], .95)),
                      "alpha_true": a_true, "beta_true": b_true})
-    print(f"  「真」α={a_true:.2f} β={b_true:.2f}（此慣例下範圍上限的 P(correct)={p_top:.3f}）")
+    b_lo, b_hi, _ = GRIDS[dim]["b"]
+    print(f"  「真」α={a_true:.2f} β={b_true:.2f}（此慣例下範圍上限的 P(correct)={p_top:.3f}；"
+          f"R 的 β 網格 [{b_lo}, {b_hi}]{'，真值在網格外' if not b_lo <= b_true <= b_hi else ''}）")
     print_table(rows, ["trial", "alpha_mean", "alpha_q05", "alpha_q95", "beta_mean", "beta_q05", "beta_q95"], fmt="{:>11}")
     # 圖：R :63-127 的平均心理計量函數（紅→藍）+ α/β 收斂
     import matplotlib

@@ -62,9 +62,8 @@ pytest tests            # 約 1 分鐘；PyMC 的擬合測試用小樣本
 | P4（plan A） | `mean(na.rm=TRUE)` 靜默丟 draw | 回報 `dropped` 比例，> 5% 進 warnings | `salience.py` |
 | — | `DDM.pCorrect` 差 2 倍（`26MAR2019.R:117`） | `ddm_p_correct()` 照 `simdiffT.r:6`；測試證明 2 倍那條不是資料真相 | `ddm.py`、`tests/test_ddm.py` |
 | — | `.99` 反解落在刺激範圍外（`25JUNE2018.R:174`） | `salience_levels(x_range=…)` 會警告 | `psi.py` |
-| — | AGRT 的 β 網格上限釘死 | `make_psi(beta_max=…)` 可覆寫 | `psi.py` |
-| — | AGRT 的邊際 lapse `1 − √(1 − λ)` | 單維直接用 λ | `psi.py` |
-| — | `AGRT.py` 模組層 import PsychoPy | `PsiObject` 抄出來，不 import | `psi.py` |
+| — | R 的 β 網格是寫死的常數（顏色 1–50、方位 1–10，`:17` / `:224`）；受試者的 β 在網格外就被釘在邊緣 | 網格照 R 當預設（`GRIDS`），`make_psi(b=…)` 可改；不用 AGRT 的公式 | `psi.py` |
+| — | `Est.Trial.Psi.Color` 與 `.Orientation` 逐行重複 | 合成一個 `Psi` 類別，網格由呼叫端給 | `psi.py` |
 | — | scipy `ks_2samp` 的單尾漸近 p 與 R 不同 | 手算 `exp(−2·n·D²)`，與 R `ks.test(exact=FALSE)` 同式 | `sic.py` |
 
 ## 驗證
@@ -76,7 +75,7 @@ pytest tests            # 約 1 分鐘；PyMC 的擬合測試用小樣本
 | `test_salience.py` | 反解回代；五種 `alpha2_rule`；ogival 反解 = R :194-195 公式；正確率介面 |
 | `test_ddm.py` | 反應機率 = `simdiffT.r:6`；`sv = 0` 平均 RT = 解析式 |
 | `test_sic.py` | KS 統計量 = scipy；五種架構簽名；`sicGroup` 決策表；**與 R `sft::sic` 逐位元比對**（`tests/data/sic_r_oracle.json`，由 `make_sic_oracle.R` 產生一次） |
-| `test_psi.py` | 累積常態受試者回復；β 上限；`salience_levels` = `inv.pm.function` |
+| `test_psi.py` | 網格 = R 的 `seq()`；累積常態受試者回復；β 在網格外被釘住；`salience_levels` = `inv.pm.function` |
 
 ## 還沒做（plan_python_port.md P6–P7）
 

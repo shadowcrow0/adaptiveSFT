@@ -90,9 +90,9 @@
 
 | 行 | 函式 | Python 對應 | 狀態 |
 |---|---|---|---|
-| 3 | `pm.function` | `AGRT.py:133`（同一條式子） | ✔ |
-| 5-168 | `Est.Trial.Psi.Color` | `AGRT.agrtPsiObject`（`poc/psi_sft_poc.py:14-51` 去 PsychoPy 版）+ DDM 受試者 | ✔ PoC |
-| 171 | `inv.pm.function` | `salience_levels()` | ✔ PoC |
+| 3 | `pm.function` | `adaptivesft/psi.py::pm_function` | ✔ |
+| 5-168 | `Est.Trial.Psi.Color` | `adaptivesft/psi.py` 的 `Psi`（逐行移植，網格照 R） | ✔ |
+| 171 | `inv.pm.function` | `inv_pm_function` / `salience_levels()` | ✔ |
 | 173-208 | `psi_color_ddm` | 反解 .99/.90 → DDM 驗證 | ✔ PoC |
 | 214-373 | `Est.Trial.Psi.Orientation` | 與 Color 版**逐行重複**，只差範圍常數 | 合併成一個函式 |
 | 378-413 | `psi_orientation_ddm` | 同上 | 合併 |
@@ -393,7 +393,7 @@ P0 的決定依「以本 repo 設定為準」定案，P1–P5 已做完並推上
 | P2 race 密度 / CDF + 反解 | ✔ | `tests/test_race.py`、`tests/test_salience.py` |
 | P3 DDM | ✔ | `tests/test_ddm.py` |
 | P4 SIC | ✔（R 逐位元比對見 `tests/test_sic.py::test_against_r_oracle`） | `tests/test_sic.py` |
-| P5 Psi | ✔ | `tests/test_psi.py` |
+| P5 Psi | ✔（R 逐行移植，不用 AGRT.py） | `tests/test_psi.py` |
 | P6 腳本重寫 | ✔（兩種 a 慣例並排） | `scripts/`、`p6_results.md`、`results/p6/` |
 | P7 文件、CI | 部分（`adaptivesft/README.md`、`scripts/README.md`；無 CI 設定） | — |
 
