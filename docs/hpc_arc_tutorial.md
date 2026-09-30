@@ -34,7 +34,14 @@ module avail gcc        # rstan 編 C++ 用；通常 R module 已經帶
 sinfo -o "%P %l %c %m"  # 分區名、時限、核心數、記憶體；記下一個一般 CPU 分區的名字
 ```
 
-### 3. R 與 rstan —— 兩條路擇一
+### 3. R 端的 Stan 套件 —— 三條路擇一
+
+**路 0：已經自己裝好 R 與 CmdStan，只缺套件**（最快）
+
+```bash
+Rscript -e 'install.packages(c("cmdstanr","posterior","jsonlite"), repos=c("https://stan-dev.r-universe.dev","https://cloud.r-project.org"))'
+export CMDSTAN=/path/to/cmdstan-2.36.0        # 你的 CmdStan 目錄；之後 make_lnrm_oracle.R 會自動用 cmdstanr
+```
 
 **路 A：Arc 的 R module + 自己的套件庫**（rstan 編 10–20 分鐘，要在計算節點編）
 

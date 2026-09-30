@@ -13,11 +13,14 @@
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
 
-R_MODE="${R_MODE:-conda}"                 # conda 或 module，與 hpc/arc_setup.sh 一致
+R_MODE="${R_MODE:-own}"                  # own = 自己裝好的 R + CmdStan（cmdstanr）；conda / module 見 hpc/arc_setup.sh
 ENV_ROOT="${ENV_ROOT:-/work/$USER/envs}"
-module load anaconda3                     # 改成 module avail anaconda 看到的名字
+export CMDSTAN="${CMDSTAN:-}"             # own 模式：CmdStan 目錄，例 /work/$USER/cmdstan-2.36.0
 
-if [ "$R_MODE" = "conda" ]; then
+if [ "$R_MODE" = "own" ]; then
+  RSCRIPT=(Rscript)                       # PATH 裡的 R；需要 cmdstanr + posterior + jsonlite（或 rstan + jsonlite）
+elif [ "$R_MODE" = "conda" ]; then
+  module load anaconda3                   # 改成 module avail anaconda 看到的名字
   RSCRIPT=(conda run -p "$ENV_ROOT/rstan" Rscript)
 else
   module load R gcc                       # 改成實際版本
@@ -25,7 +28,7 @@ else
 fi
 
 echo "host $(hostname)  cpus $SLURM_CPUS_PER_TASK  $(date)"
-"${RSCRIPT[@]}" -e 'library(rstan); cat("stan", stan_version(), "rstan", as.character(packageVersion("rstan")), "\n")'
+"${RSCRIPT[@]}" -e 'for (p in c("cmdstanr","rstan","posterior","jsonlite")) cat(p, requireNamespace(p, quietly=TRUE), "\n")'
 # 用新語法檔（預設）。舊 stanc（<= 2.32）想用原檔：STAN_FILE=lnrm2.stan sbatch hpc/stan_oracle.sbatch
 "${RSCRIPT[@]}" tests/data/make_lnrm_oracle.R
 ls -l tests/data/lnrm_stan_oracle.json

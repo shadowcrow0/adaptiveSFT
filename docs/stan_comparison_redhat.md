@@ -24,7 +24,18 @@ sudo dnf install -y R R-devel gcc-c++ make git
 R --version                                  # 4.x 即可
 ```
 
-在 R 裡裝 rstan（會編 C++，10–20 分鐘；記憶體至少 4 GB）：
+R 套件二選一（腳本會自動偵測，也可用 `BACKEND=cmdstanr` / `BACKEND=rstan` 指定）：
+
+**已經有 CmdStan 的話用 cmdstanr**（不用編 rstan；只裝 R 套件，1–2 分鐘）：
+
+```r
+install.packages(c("cmdstanr", "posterior", "jsonlite"),
+                 repos = c("https://stan-dev.r-universe.dev", "https://cloud.r-project.org"))
+cmdstanr::set_cmdstan_path("/path/to/cmdstan-2.36.0")   # 你裝 CmdStan 的目錄；或跑腳本時設環境變數 CMDSTAN=
+cmdstanr::cmdstan_version()
+```
+
+**沒有 CmdStan 的話用 rstan**（會編 C++，10–20 分鐘；記憶體至少 4 GB）：
 
 ```r
 install.packages(c("rstan", "jsonlite"), repos = "https://cloud.r-project.org")
