@@ -5,6 +5,7 @@
 | `simulate_lnrm_ogival.py` | `simulateLNRM_ogival.R` | `salience` `convergence` `ppc` `single-dfp` `full-experiment` `all` |
 | `simulate_psi.py` | `psi Simulation_26MAR2019.R` | `convergence` `dfp` `full-experiment` `all` |
 | `_common.py` | — | 共用：命令列、a 慣例迴圈、survivor + SIC 圖、csv |
+| `demo_decisions.py` | — | **英文 Decision A / B demo**：`a` 的兩種讀法、`lnrm2a` 的 ½L / L 與 L 固定 / 估，各自算出的 H / L、正確率、退化與否並排；輸出在 `results/decisions_demo.txt` |
 | `demo_parity.py` | — | **英文 parity demo**：R 原碼算出的數值（`tests/data/*_r_oracle.json`）vs Python，加上兩條路、兩種 `a` 慣例之間的換算表。不需要 R；oracle 由 `tests/data/make_*_oracle.R` 產生一次 |
 
 兩支都有 `--a-convention {separation,threshold,both}`（預設 `both`），對應 `decisions_for_author.md`
@@ -23,6 +24,8 @@ $PY scripts/simulate_lnrm_ogival.py convergence --full   # R 原設定 N = 1…3
 ```
 
 輸出到 `output/`（gitignored）：每段一個子目錄，png + csv。
+
+`simulate_lnrm_ogival.py` 另有 `--sampler {nuts,demetropolisz}`（預設 nuts）、`--fit-separate`（R 的 `fit.separate`：每層各擬合一個 lnrm0，畫在 ogival 曲線上）；`full-experiment` 會同時跑 R 的 `sft.allx` 對照組（全體用同一組 H/L）。
 
 與 R 原腳本刻意不同的地方：
 

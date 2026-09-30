@@ -55,7 +55,7 @@ def test_simdiffT_matches_r_distributionally():
 def _run_python_psi(o):
     u = np.loadtxt(os.path.join(DATA, "psi_oracle_input.csv"), delimiter=",", skiprows=1)[:, 1]
     sim = o["sim"]
-    psi = make_psi("colour")
+    psi = make_psi(o.get("dim", "colour"))
     intens, resp, alpha, beta = [], [], [], []
     for t in range(len(o["intensity"])):
         intens.append(psi.next_intensity)
@@ -74,6 +74,14 @@ def test_psi_loop_matches_r_trial_by_trial():
     assert np.array_equal(intens, np.asarray(o["intensity"]))          # same stimulus chosen every trial
     assert np.array_equal(resp, np.asarray(o["response"]))             # hence same responses
     assert np.max(np.abs(alpha - np.asarray(o["alpha"]))) < 1e-10      # same posterior means
+    assert np.max(np.abs(beta - np.asarray(o["beta"]))) < 1e-10
+
+
+def test_psi_loop_matches_r_orientation_grid():
+    o = _load("psi_r_oracle_orientation.json")
+    intens, resp, alpha, beta = _run_python_psi(o)
+    assert np.array_equal(intens, np.asarray(o["intensity"])) and np.array_equal(resp, np.asarray(o["response"]))
+    assert np.max(np.abs(alpha - np.asarray(o["alpha"]))) < 1e-10
     assert np.max(np.abs(beta - np.asarray(o["beta"]))) < 1e-10
 
 

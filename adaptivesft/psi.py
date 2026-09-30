@@ -22,8 +22,9 @@ R 的流程（行號為 Est.Trial.Psi.Color 的）：
     :171      inv.pm.function(y, a, b, d) = qnorm((y − ½d)/(1 − d), a, b)
     :183-184  H = inv.pm.function(.99, …)，L = inv.pm.function(.90, …)
 
-與 R 唯一的數值差異：R 的 −Σ p·log10(p) 在 p = 0 時得 NaN（which.min 會忽略那個 x）；
-這裡把 0·log(0) 當 0。實際上 pL.XR 只在 Φ underflow 時才會是 0。
+與 R 的兩個數值細節：(1) R 的 −Σ p·log10(p) 在 p = 0 時得 NaN（which.min 會忽略那個 x），這裡把
+0·log(0) 當 0，pL.XR 只在 Φ underflow 時才會是 0；(2) 期望熵同分時取最前面的 x（見 _recompute 的註解）。
+tests/test_parity_demo.py 用 R 逐行跑出的 oracle 驗證：顏色與方位兩組網格、各 300 試，每一試選的 x 相同。
 """
 import numpy as np
 from scipy import stats
@@ -81,7 +82,10 @@ class Psi:
         p = self.pL_XR
         ent = -np.sum(p * np.log10(p, out=np.zeros_like(p), where=p > 0), axis=(1, 2))   # :72-77
         expected = np.sum(ent * pR_X, axis=0)                                       # :80-83
-        self.next_index = int(np.argmin(expected))                                  # :86
+        # :86 which.min 取第一個最小值。網格對稱時（方位：α 網格中心 60.25 落在 x 網格的 60 與 60.5 之間）
+        # 兩個 x 的期望熵在數學上相等，只差浮點加總順序；R 的巢狀迴圈和這裡的 einsum 順序不同，
+        # 硬比 argmin 會各選各的。所以在 1e−12 內視為同分，取最前面的一個（＝R 對真正同分的行為）。
+        self.next_index = int(np.argmax(expected <= expected.min() + 1e-12))
         self.next_intensity = float(self.x[self.next_index])                        # :87
 
     def update(self, response):

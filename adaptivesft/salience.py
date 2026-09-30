@@ -47,6 +47,13 @@ def _param(trace, name):
     return float(trace.attrs["fix_params"][name])
 
 
+def _L_draws(trace):
+    """L 固定時是純量；L='estimate' 時是每個 draw 的值。"""
+    if "L" in trace.posterior:
+        return _flat(trace, "L")
+    return float(trace.attrs["L"])
+
+
 def accuracy_to_targ(p, varZ):
     """目標正確率 → 目標分離 z2 − z1。p ∈ (0.5, 1)。"""
     p = np.asarray(p, dtype=float)
@@ -124,21 +131,22 @@ def find_salience_ogival(trace, h_targ, l_targ, L=None):
     """lnrm2a 的反解（R :180-199）：x = logit(targ / L) / slope + midpoint，逐 draw。targ ≥ L 無解。"""
     if trace.attrs["link"] != "ogival":
         raise ValueError("find_salience_ogival 只接受 link='ogival'")
-    L = float(trace.attrs["L"]) if L is None else float(L)
+    L_attr = trace.attrs["L"]
+    L = _L_draws(trace) if L is None else float(L)
+    sep_max = L * 2.0 * float(trace.attrs.get("ogival_offset", 0.5))   # z2 − z1 的上漸近線：½L 讀法 = L，L 讀法 = 2L
     slope = np.atleast_1d(_param(trace, "slope")).astype(float)
     midpoint = np.atleast_1d(_param(trace, "midpoint")).astype(float)
-    slope, midpoint = np.broadcast_arrays(slope, midpoint)
+    slope, midpoint, sep_max = np.broadcast_arrays(slope, midpoint, np.atleast_1d(sep_max).astype(float))
     warnings = []
     out = {}
     for name, t in (("high", h_targ), ("low", l_targ)):
-        frac = t / L
-        if not 0.0 < frac < 1.0:
-            warnings.append(f"{name}: targ={t} 不在 (0, L={L}) 內，ogival 永遠到不了")
-            x = np.full(slope.shape, np.nan)
-        else:
-            with np.errstate(divide="ignore", invalid="ignore"):
-                x = logit(frac) / slope + midpoint
-            x = np.where(slope > 0, x, np.nan)   # slope ≤ 0 的 draw：曲線反向，反解沒意義
+        with np.errstate(divide="ignore", invalid="ignore"):
+            frac = t / sep_max
+            x = logit(frac) / slope + midpoint
+        ok = (frac > 0.0) & (frac < 1.0) & (slope > 0)   # targ ≥ 上漸近線：到不了；slope ≤ 0：曲線反向
+        x = np.where(ok, x, np.nan)
+        if not ok.any():
+            warnings.append(f"{name}: targ={t} 不在 (0, {np.median(sep_max):.3g}) 內（L={L_attr}），ogival 永遠到不了")
         out[name] = _pack(name, t, x, warnings)
     out["warnings"] = warnings
     out["rule"] = "ogival"
@@ -170,10 +178,10 @@ def find_salience(trace, h_targ=None, l_targ=None, acc_high=None, acc_low=None, 
               for k in trace.posterior.data_vars if k != "log_likelihood"}
     for name, targ, p in (("high", h_targ, acc_high), ("low", l_targ, acc_low)):
         if link == "ogival":
-            L = float(trace.attrs["L"])
+            sep_max = _L_draws(trace) * 2.0 * float(trace.attrs.get("ogival_offset", 0.5))
             with np.errstate(divide="ignore", invalid="ignore"):
-                x = logit(targ / L) / params["slope"] + params["midpoint"]
-            x = np.where((targ > 0) & (targ < L) & (params["slope"] > 0), x, np.nan)
+                x = logit(targ / sep_max) / params["slope"] + params["midpoint"]
+            x = np.where((targ > 0) & (targ < sep_max) & (params["slope"] > 0), x, np.nan)
         elif link == "linear":
             x = targ / (2.0 * params["alpha"])
         else:

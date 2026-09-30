@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adaptivesft"
+version = "0.1.0"
+description = "Python port of adaptiveSFT (Houpt): LNRM / Psi salience calibration, DDM simulation, SFT SIC analysis"
+readme = "adaptivesft/README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = [
+    "numpy",
+    "scipy",
+    "pymc>=5.20",
+    "pytensor",
+    "numba",
+    "arviz",
+]
+
+[project.optional-dependencies]
+scripts = ["matplotlib", "joblib", "statsmodels"]
+dev = ["pytest>=8", "xarray", "matplotlib", "joblib", "statsmodels"]
+
+[tool.setuptools]
+packages = ["adaptivesft"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+filterwarnings = ["ignore::FutureWarning", "ignore::UserWarning"]

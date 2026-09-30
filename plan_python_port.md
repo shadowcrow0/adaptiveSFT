@@ -393,7 +393,8 @@ P0 的決定依「以本 repo 設定為準」定案，P1–P5 已做完並推上
 | P2 race 密度 / CDF + 反解 | ✔ | `tests/test_race.py`、`tests/test_salience.py` |
 | P3 DDM | ✔ | `tests/test_ddm.py` |
 | P4 SIC | ✔（R 逐位元比對見 `tests/test_sic.py::test_against_r_oracle`） | `tests/test_sic.py` |
+| P5b Psi 對 R | ✔ 逐試 1e−13，顏色與方位兩組網格 | `tests/test_parity_demo.py` |
 | P5 Psi | ✔（R 逐行移植，不用 AGRT.py） | `tests/test_psi.py` |
 | P6 腳本重寫 | ✔（兩種 a 慣例並排） | `scripts/`、`p6_results.md`、`results/p6/` |
-| P7 文件、CI | 部分（`adaptivesft/README.md`、`scripts/README.md`；無 CI 設定） | — |
+| P7 文件、CI | ✔ `pyproject.toml`、`.github/workflows/tests.yml`、頂層 README、`issue.md` §8；LNRM 對 Stan 的 oracle 待在有 rstan 的機器上產生（`docs/stan_comparison_redhat.md`） | — |
 

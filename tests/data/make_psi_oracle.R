@@ -2,7 +2,8 @@
 # copied line by line, with one change so that R and Python see the same observer:
 # instead of simdiffT (:104-106) the response is drawn from pm.function with a pre-drawn uniform u[trial]
 # (tests/data/psi_oracle_input.csv, made by make_psi_oracle_input.py). Everything else is the original code.
-#   Rscript tests/data/make_psi_oracle.R
+#   Rscript tests/data/make_psi_oracle.R                              # colour grids (:15-18)
+#   PSI_ORACLE_DIM=orientation Rscript tests/data/make_psi_oracle.R   # orientation grids (:222-225)
 suppressMessages(library(jsonlite))
 here <- "tests/data"
 inp <- read.csv(file.path(here, "psi_oracle_input.csv"))
@@ -13,13 +14,25 @@ pm.function <- function (x,a,b,d) .5 * d + (1-d) * pnorm(x,a,b)            # :3
 inv.pm.function <- function (y,a,b,d) qnorm((y-.5*d)/(1-d), a, b)         # :171
 
 prior <- NA
-sim.a <- 6                                                                 # :10-12
-sim.b <- 15
-sim.d <- .01
-x.range <- c(-55,50); x.step <- 1                                          # :15-18
-a.range <- c(-25,45); a.step <- 1
-b.range <- c(1,50); b.step <- 1
-d <- .01
+dim <- Sys.getenv("PSI_ORACLE_DIM", "colour")
+if (dim == "colour") {
+  sim.a <- 6                                                               # :10-12
+  sim.b <- 15
+  sim.d <- .01
+  x.range <- c(-55,50); x.step <- 1                                        # :15-18
+  a.range <- c(-25,45); a.step <- 1
+  b.range <- c(1,50); b.step <- 1
+  d <- .01
+} else {
+  sim.a <- 63                                                              # :218-220
+  sim.b <- 6
+  sim.d <- .01
+  x.range <- c(45,90); x.step <- .5                                        # :222-225
+  a.range <- c(45.5,75); a.step <- .5
+  b.range <- c(1,10); b.step <- .5
+  d <- .01
+}
+out_name <- if (dim == "colour") "psi_r_oracle.json" else "psi_r_oracle_orientation.json"
 
 x <- seq(x.range[1],x.range[2],x.step)                                     # :24-27
 a <- seq(a.range[1],a.range[2],a.step)
@@ -79,5 +92,6 @@ out <- list(
   high = inv.pm.function(.99, a.est.v[n], b.est.v[n], sim.d),              # :183-184
   low  = inv.pm.function(.90, a.est.v[n], b.est.v[n], sim.d)
 )
-writeLines(toJSON(out, digits = NA, auto_unbox = TRUE), file.path(here, "psi_r_oracle.json"))
-cat("wrote", file.path(here, "psi_r_oracle.json"), "trials", n, "final alpha", a.est.v[n], "beta", b.est.v[n], "\n")
+out$dim <- dim
+writeLines(toJSON(out, digits = NA, auto_unbox = TRUE), file.path(here, out_name))
+cat("wrote", file.path(here, out_name), "trials", n, "final alpha", a.est.v[n], "beta", b.est.v[n], "\n")

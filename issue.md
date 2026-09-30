@@ -354,3 +354,24 @@ Python 移植只把「lnrm2.stan 擬合」這一個方框換掉，真正消失�
 根本原因是 stanc 編譯器不再被呼叫）；R2 因為 `:1-5` 無條件載入 rstan，只消失了一半。
 其餘 7 項（R1、R3–R6、S2、S3）全部原封不動留在 pipeline 的其他方框裡，
 S3 甚至因為新增了 Python/R 兩套「varZ 是 SD 還是 variance」的假設而變成新的交界風險。
+
+---
+
+## 8. 最終狀態（2026-09-30，Python 版 `adaptivesft/` 完成後）
+
+| 項目 | 狀態 | 在哪 |
+|---|---|---|
+| R1 `if (alpha2 < 0)` | 定案：`alpha2_rule` 參數，預設 `all_draws`（舊 R 成功路徑，數值不變）；`first_draw` 重現舊 R | `adaptivesft/salience.py` |
+| R2 / R3 / S1 | 消失：不呼叫 rstan、不編 Stan；Stan 比對用 `stan/lnrm2_array.stan`（只改五行語法） | `docs/stan_comparison_redhat.md` |
+| R4 | 本來就沒中 | — |
+| R5 / S2 遺失檔 | 不可解；`link="none" / "linear" / "ogival"` 是重建，先驗是猜的 | `adaptivesft/models.py`、`decisions_for_author.md` B |
+| R6 2018 腳本 bug | 不移植那些腳本；函式層重寫並對 R 原碼比對 | `scripts/`、`tests/test_parity_demo.py` |
+| S3 `varZ` | 定案：SD；R 的 `simulateLNRM_ogival.R:204/213/258/281` 把 SD 塞進變異數位是 R 自己的錯 | `adaptivesft/race.py` |
+| P1–P5 `adaptive_sft2.py` | 作廢 | — |
+| M1–M7 | 沿用 numba Op 版並加純 PyTensor 版（兩者 logp 差 < 1e−8） | `adaptivesft/models.py` |
+| M8 Op 沒梯度 | 解了：預設 `sampler="nuts"` 用 PyTensor 運算式，有梯度；DEMetropolisZ 留作選項 | 同上 |
+| M9 `mu` / `psi` ridge | 模型性質，未變 | — |
+| 新：`a` 的意義差 2 倍 | 做成 `a_is_separation` 參數，兩種都跑 | `decisions_for_author.md` A、`p6_results.md` |
+| 新：`.99` 落在範圍外 | `salience_levels(x_range=)` 警告；根因同上 | `adaptivesft/psi.py` |
+| 新：diffIRT 拒絕抽樣在 a·drift ≳ 26 停滯 | a·|drift| > 20 改 Euler 模擬 | `adaptivesft/ddm.py` |
+| 與 R 原碼的比對 | `sft::sic` 1e−12、`simdiffT` 分布、Psi 迴圈逐試 1e−13（顏色、方位兩組網格）；LNRM 對 Stan 待在有 rstan 的機器上產生 oracle | `tests/data/`、`scripts/demo_parity.py` |

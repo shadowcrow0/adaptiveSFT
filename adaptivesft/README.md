@@ -43,8 +43,8 @@ print(classify(sic(**cells)))
 ```
 
 ```bash
-pip install -r requirements-dev.txt
-pytest tests            # 約 1 分鐘；PyMC 的擬合測試用小樣本
+pip install -e ".[dev]"      # 或 pip install -r requirements-dev.txt（釘住的版本）
+pytest                       # 約 3 分鐘；PyMC 的擬合測試用小樣本；CI 在 .github/workflows/tests.yml
 ```
 
 ## issue.md 的每一項在這裡怎麼定案
@@ -57,6 +57,8 @@ pytest tests            # 約 1 分鐘；PyMC 的擬合測試用小樣本
 | R5 / S2 | `lnrm0 / lnrm1 / lnrm2a.stan` 遺失 | `link="none" / "linear" / "ogival"` 重建；每題 d 的公式在 `models.py` 檔頭；ogival 的先驗是猜的（TODO-A3） | `models.py` |
 | R5 | `post95.Rdata`、輸入 csv 遺失 | 模擬腳本自己產生（scripts/ 尚未寫） | — |
 | R6 | 2018 腳本的 bug（`sigmasqx`、`postOpt.diff`、`dp` 未初始化…） | 不移植那些腳本；函式層重寫 | — |
+| M8 | Op 沒梯度，只能 DEMetropolisZ（8 鏈偶有 1 鏈卡在 slope ≤ 0） | 預設 `sampler="nuts"`：likelihood 用純 PyTensor 寫一次（與 numba Op 的 logp 差 < 1e−8），有梯度；`sampler="demetropolisz"` 保留 | `models.py` |
+| B | `lnrm2a` 的 ½L / L、L 固定或估 | `ogival_offset=0.5|1.0`、`L=10|"estimate"`，反解跟著走 | `models.py`、`salience.py`、`scripts/demo_decisions.py` |
 | S3 | `varZ` 是 SD 還是變異數 | **SD**。`dlognormalrace / plognormalrace` 改收 `varZ`，不開根號；R 的 `simulateLNRM_ogival.R:204/213/258/281` 把 SD 塞進變異數位是 R 自己的錯 | `race.py` |
 | P1–P5 | `adaptive_sft2.py` | 作廢 | — |
 | P4（plan A） | `mean(na.rm=TRUE)` 靜默丟 draw | 回報 `dropped` 比例，> 5% 進 warnings | `salience.py` |
@@ -76,6 +78,7 @@ pytest tests            # 約 1 分鐘；PyMC 的擬合測試用小樣本
 | `test_ddm.py` | 反應機率 = `simdiffT.r:6`；`sv = 0` 平均 RT = 解析式 |
 | `test_sic.py` | KS 統計量 = scipy；五種架構簽名；`sicGroup` 決策表；**與 R `sft::sic` 逐位元比對**（`tests/data/sic_r_oracle.json`，由 `make_sic_oracle.R` 產生一次） |
 | `test_psi.py` | 網格 = R 的 `seq()`；累積常態受試者回復；β 在網格外被釘住；`salience_levels` = `inv.pm.function` |
+| `test_lnrm_vs_stan.py` | **LNRM 對 Stan**：`tests/data/lnrm_stan_oracle.json`（在有 rstan 的機器上由 `make_lnrm_oracle.R` 產生，見 `docs/stan_comparison_redhat.md`）vs `fit_lnrm(link="quadratic")`；沒有 oracle 時 skip |
 | `test_parity_demo.py` | **與 R 原碼逐位元 / 分布對照**：`sft::sic`（1e−12）、`diffIRT::simdiffT`（20000 試分布）、`psiSimulation_functions.R` 的 Psi 迴圈逐試相同（1e−10）；以及正確率 ↔ 分離、兩種 `a` 慣例的換算。`scripts/demo_parity.py` 印成表（英文） |
 
 ## 還沒做（plan_python_port.md P6–P7）

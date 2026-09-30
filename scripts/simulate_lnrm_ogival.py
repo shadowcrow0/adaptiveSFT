@@ -23,7 +23,7 @@ import numpy as np
 from _common import (ARCHS, Timer, base_parser, conventions, outdir, plot_survivor_sic, print_table,
                      run_dfp_cells, sic_row, write_csv)
 from adaptivesft.ddm import ddm_p_correct, dfp_ddm, draw_participant, moc_ddm
-from adaptivesft.models import fit_lnrm, d_numpy
+from adaptivesft.models import fit_lnrm, fit_lnrm0_by_level, d_numpy
 from adaptivesft.race import plognormalrace_curve
 from adaptivesft.salience import find_salience, summarize, targ_to_accuracy
 from adaptivesft.sic import sic_group
@@ -42,7 +42,7 @@ def scaled_levels(x_range, thres50, n_levels=N_LEVELS):
 
 
 def fit_kwargs(args):
-    return dict(tune=args.tune, draws=args.draws, chains=args.chains, random_seed=args.seed)
+    return dict(tune=args.tune, draws=args.draws, chains=args.chains, random_seed=args.seed, sampler=args.sampler)
 
 
 def sec_salience(args, conv, sep, rng, dim="orientation"):
@@ -108,7 +108,7 @@ def sec_convergence(args, conv, sep, rng):
         r = np.random.default_rng(args.seed + N)
         data = moc_ddm(N, A, V, TER, SDV, scaled, rng=r, a_is_separation=sep)
         tr = fit_lnrm(data, link="ogival", L=L, chains=4, tune=args.tune, draws=args.draws,
-                      random_seed=args.seed, cores=1)
+                      random_seed=args.seed, cores=1, sampler=args.sampler)
         row = {"convention": conv, "N_per_level": N}
         for k in ("midpoint", "slope"):
             v = tr.posterior[k].values.ravel()
@@ -154,12 +154,34 @@ def plot_convergence(all_rows, args):
 
 
 def sec_ppc(args, conv, sep, rng, tr, data, levels_scaled, n_draws=20):
-    """:142-300。各層：資料 ecdf（答對 / 答錯，各乘其比例）vs 後驗子樣本的 plognormalrace。"""
+    """:142-300。各層：資料 ecdf（答對 / 答錯，各乘其比例）vs 後驗子樣本的 plognormalrace。
+    --fit-separate 時另做 :146-170（fit.separate）：每層各自擬合無強度項的賽跑（lnrm0），
+    把各層的 d 畫在 ogival 曲線上對照。"""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     _, scaled = levels_scaled
+    if args.fit_separate:
+        with Timer("fit.separate: lnrm0 per level"):
+            per_level = fit_lnrm0_by_level(data, tune=args.tune, draws=args.draws, chains=min(args.chains, 4),
+                                           random_seed=args.seed, progressbar=False)
+        post_o = {k: tr.posterior[k].values.ravel() for k in ("slope", "midpoint")}
+        xx = np.linspace(scaled.min(), scaled.max(), 100)
+        fig, ax = plt.subplots(figsize=(5.5, 3.8))
+        ax.scatter([lv for lv, _, _ in per_level], [dd for _, dd, _ in per_level], color="k", zorder=5,
+                   label="lnrm0 per level (R :150-162)")
+        ax.plot(xx, [np.median(d_numpy("ogival", v, post_o, L)) for v in xx], label="ogival (lnrm2a)")
+        ax.set_xlabel("scaled intensity")
+        ax.set_ylabel("d = (z2 - z1) / 2")
+        ax.set_title(f"fit.separate, a = {conv}")
+        ax.legend(fontsize=8)
+        fig.tight_layout()
+        path = os.path.join(outdir(args, "ppc"), f"fit_separate_{conv}.png")
+        fig.savefig(path, dpi=130)
+        plt.close(fig)
+        print(f"    wrote {path}")
+        print("    " + "  ".join(f"x={lv:.2f}: d={dd:.3f}" for lv, dd, _ in per_level))
     post = {k: tr.posterior[k].values.ravel() for k in ("mu", "slope", "midpoint", "varZ", "psi")}
     idx = rng.choice(post["mu"].size, n_draws, replace=False)          # R 的 rsamp
     tvec = np.linspace(0, 5, 200)
@@ -209,10 +231,12 @@ def sec_single_dfp(args, conv, sep, rng, high, low, n=250):
     return rows
 
 
-def sec_full_experiment(args, conv, sep, rng):
-    """:470-585：n 位受試者，各自的 (a, v, ter, sdv)，兩維各擬合一次，DFP，sicGroup。"""
+def sec_full_experiment(args, conv, sep, rng, group_hl=None):
+    """:470-585：n 位受試者，各自的 (a, v, ter, sdv)，兩維各擬合一次，DFP，sicGroup。
+    group_hl=(high, low)：另跑 R 的 sft.allx 對照組（:549-565）——每個人都用同一組群體 H/L，不個別校準。"""
     n_p, n_trials = (3, 60) if args.quick else (args.n_participants, args.n_trials)
     long = {k: [] for k in ("subject", "condition", "channel1", "channel2", "correct", "rt")}
+    longx = {k: [] for k in long}
     pars, sal = [], []
     for sn in range(1, n_p + 1):
         a_p, v_p, ter_p, sdv_p = draw_participant(A, V, TER, SDV, rng=rng)
@@ -246,22 +270,47 @@ def sec_full_experiment(args, conv, sep, rng):
             long["channel2"] += [c2] * n_trials
             long["correct"] += cr.tolist()
             long["rt"] += rt.tolist()
+        if group_hl is not None:                                            # sft.allx：群體 H/L
+            gh, gl = group_hl
+            for (c1, c2), (d1, d2) in zip(((2, 2), (2, 1), (1, 2), (1, 1)), ((gh, gh), (gh, gl), (gl, gh), (gl, gl))):
+                rt, cr = dfp_ddm(n_trials, d1 * v_p, d2 * v_p, a_p, ter_p, sdv_p, args.arch, args.rule, rng=rng,
+                                 a_is_separation=sep)
+                longx["subject"] += [sn] * n_trials
+                longx["condition"] += [f"{args.arch}.{args.rule}.groupHL"] * n_trials
+                longx["channel1"] += [c1] * n_trials
+                longx["channel2"] += [c2] * n_trials
+                longx["correct"] += cr.tolist()
+                longx["rt"] += rt.tolist()
     overview, _ = sic_group(**long)
     for r in overview:
         r["convention"] = conv
     print_table(overview, ["Subject", "Selective.Influence", "Positive.SIC", "Negative.SIC", "MIC", "Predicted_by"],
                 fmt="{:>16}")
+    if group_hl is not None and longx["rt"]:
+        ovx, _ = sic_group(**longx)
+        for r in ovx:
+            r["convention"] = conv
+        print("    對照組（同一組群體 H/L，R 的 sft.allx）：")
+        print_table(ovx, ["Subject", "Selective.Influence", "Positive.SIC", "Negative.SIC", "MIC", "Predicted_by"],
+                    fmt="{:>16}")
+        overview += ovx
+    # printsft（:588-682）的角色：一行摘要
+    n_ok = sum(1 for r in overview if r["Predicted_by"] == {"PAR.OR": "ParallelOR", "PAR.AND": "ParallelAND",
+                                                              "SER.OR": "SerialOR", "SER.AND": "SerialAND"}.get(f"{args.arch}.{args.rule}"))
+    print(f"    {args.arch}-{args.rule}: {n_ok}/{len(overview)} 位判成正確架構")
     return overview, pars, sal
 
 
 def main():
     ap = base_parser(__doc__)
     ap.add_argument("section", choices=("salience", "convergence", "ppc", "single-dfp", "full-experiment", "all"))
-    ap.add_argument("--tune", type=int, default=3000)
-    ap.add_argument("--draws", type=int, default=3000)
-    ap.add_argument("--chains", type=int, default=8)
+    ap.add_argument("--tune", type=int, default=1000)
+    ap.add_argument("--draws", type=int, default=1000)
+    ap.add_argument("--chains", type=int, default=4)
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--full", action="store_true", help="convergence：N = 1…300 全跑（R 原設定，很慢）")
+    ap.add_argument("--fit-separate", action="store_true", help="ppc：另做 R 的 fit.separate（每層各擬合一個 lnrm0）")
+    ap.add_argument("--sampler", default="nuts", choices=("nuts", "demetropolisz"))
     ap.add_argument("--n-participants", type=int, default=10)
     ap.add_argument("--n-trials", type=int, default=100)
     ap.add_argument("--arch", default="PAR")
@@ -289,7 +338,8 @@ def main():
         if "convergence" in sections:
             conv_rows += sec_convergence(args, conv, sep, rng)
         if "full-experiment" in sections:
-            ov, pars, sal = sec_full_experiment(args, conv, sep, rng)
+            group_hl = (row["high"], row["low"]) if need_fit and np.isfinite(row["high"]) and np.isfinite(row["low"]) else None
+            ov, pars, sal = sec_full_experiment(args, conv, sep, rng, group_hl=group_hl)
             exp_rows += ov
             write_csv(pars, os.path.join(outdir(args, "full_experiment"), f"participants_{conv}.csv"))
             write_csv(sal, os.path.join(outdir(args, "full_experiment"), f"salience_{conv}.csv"))

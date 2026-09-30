@@ -14,7 +14,20 @@
 先驗照 lnrm2.stan:30-33 與宣告（:13-17）；slope / midpoint 照 model_lnrm2a.py 的猜測 Normal(0, 2)
 （原檔遺失，issue.md S2）。varZ 是 SD（race.py 檔頭）。
 
-取樣器：自訂 pt.Op 沒有梯度，用 DEMetropolisZ（同 model_lnrm2.py）。
+取樣器（sampler 參數）：
+    "nuts"          預設。likelihood 用純 PyTensor 運算式重寫一次（log-pdf + log-survival，
+                    survival 用 erfc 寫成 ln Φ，PyTensor 會在尾端自動換漸近式），有梯度，NUTS。
+                    tests/test_models.py 驗證它跟 numba Op 的 logp 在同一點差 < 1e-8。
+    "demetropolisz" 自訂 pt.Op（numba）沒有梯度，用 DEMetropolisZ（同 model_lnrm2.py）。
+                    8 鏈中偶爾 1 鏈卡在 slope ≤ 0 的模態（results/p6：12.5% draw 反解無解），
+                    所以不再當預設。
+ogival 的兩個可調項（decisions_for_author.md Decision B）：
+    ogival_offset   0.5（預設，simulateLNRM_ogival.R:206-209 的 c(-.5,.5)*L）或 1.0（getPr_ogival :11 的讀法）
+    L               數字 = 固定（預設 10，simulateLNRM_ogival.R:26）；"estimate" = 當參數估，先驗 HalfNormal(10)
+    positive_slope  True（預設）：slope ~ HalfNormal(2)。R 的反解 logit(targ/L)/slope + midpoint
+                    （adaptiveSFT_functions.R:194-195）只在 slope > 0 有意義，而 slope 的原始先驗不可考（TODO-A3）；
+                    給 Normal(0, 2)（positive_slope=False）時後驗有 slope < 0 的鏡像模態，NUTS 或 DEMetropolisZ
+                    都可能整條鏈卡在那裡（results/p6：8 鏈卡 1 鏈，12.5% draw 反解無解）。
 資料格式：(N, 3) numpy array = [rt, correct, intensity]，同 model_lnrm2.py；`make_data()` 對應 R 的 dataframe2stan。
 """
 import numpy as np
@@ -88,15 +101,40 @@ class LNRM_PointwiseOp(pt.Op):
             np.ascontiguousarray(np.asarray(d, dtype=float).reshape(-1)), f(mu), f(varZ), f(psi))
 
 
-def fit_lnrm(data, link="quadratic", L=L_MAX_SEPARATION, fix_params=None,
-             tune=3000, draws=3000, chains=8, random_seed=42, progressbar=False, **sample_kwargs):
+def _race_logp_pt(rt, correct, d, mu, varZ, psi):
+    """race.py 的 lnrm_def_logpdf 用 PyTensor 寫一次（給 NUTS 梯度用）。逐題向量。"""
+    z1 = mu - d
+    z2 = mu + d
+    c = pt.as_tensor_variable(correct).astype("float64")
+    z_win = c * z1 + (1.0 - c) * z2
+    z_lose = c * z2 + (1.0 - c) * z1
+    t = pt.as_tensor_variable(rt) - psi
+    logt = pt.log(t)
+    log_pdf = -logt - pt.log(varZ) - 0.9189385332046727 - 0.5 * ((logt - z_win) / varZ) ** 2
+    log_sf = pt.log(0.5) + pt.log(pt.erfc((logt - z_lose) / (varZ * 1.4142135623730951)))   # ln Φ(−(ln t − z)/σ)
+    return log_pdf + log_sf
+
+
+def fit_lnrm(data, link="quadratic", L=L_MAX_SEPARATION, fix_params=None, sampler="nuts",
+             ogival_offset=0.5, positive_slope=True, tune=None, draws=None, chains=None, random_seed=42,
+             progressbar=False, target_accept=0.9, **sample_kwargs):
     """
     擬合 LNRM，回傳 arviz.InferenceData；attrs 裡有 link / L / min_rt，salience.py 會用到。
 
     fix_params：把任一參數固定為常數，例 {'alpha2': 0.0}（= lnrm1）、{'psi': 0.1}。
+    tune / draws / chains 預設：nuts 1000 / 1000 / 4；demetropolisz 3000 / 3000 / 8（同 model_lnrm2.py）。
     """
     if link not in LINKS:
         raise ValueError(f"未知的 link: {link!r}，可用 {LINKS}")
+    if sampler not in ("nuts", "demetropolisz"):
+        raise ValueError("sampler 必須是 'nuts' 或 'demetropolisz'")
+    if ogival_offset not in (0.5, 1.0):
+        raise ValueError("ogival_offset 必須是 0.5（½L）或 1.0（L）")
+    estimate_L = isinstance(L, str) and L == "estimate"
+    if sampler == "nuts":
+        tune, draws, chains = tune or 1000, draws or 1000, chains or 4
+    else:
+        tune, draws, chains = tune or 3000, draws or 3000, chains or 8
     fix_params = dict(fix_params or {})
     data = np.asarray(data, dtype=float)
     rt = data[:, 0]
@@ -123,20 +161,38 @@ def fit_lnrm(data, link="quadratic", L=L_MAX_SEPARATION, fix_params=None,
         if link == "quadratic":
             param("alpha2", lambda: pm.Normal("alpha2", 0.0, 1.0), -0.1)          # lnrm2.stan:33
         if link == "ogival":
-            param("slope", lambda: pm.Normal("slope", 0.0, 2.0), 1.0)             # model_lnrm2a.py 的猜測
+            if positive_slope:
+                param("slope", lambda: pm.HalfNormal("slope", 2.0), 1.0)          # 見檔頭 positive_slope
+            else:
+                param("slope", lambda: pm.Normal("slope", 0.0, 2.0), 1.0)         # model_lnrm2a.py 的猜測
             param("midpoint", lambda: pm.Normal("midpoint", 0.0, 2.0), float(np.mean(x)))
+            if estimate_L:
+                param("L", lambda: pm.HalfNormal("L", 10.0), L_MAX_SEPARATION)   # Decision B：L 當參數
 
-        d = d_expr(link, pt.as_tensor_variable(x), p, L)
-        log_lik = LNRM_PointwiseOp()(rt, correct, d, p["mu"], p["varZ"], p["psi"])
+        L_used = p["L"] if estimate_L else float(L)
+        d = d_expr(link, pt.as_tensor_variable(x), p, L_used) * (2.0 * ogival_offset if link == "ogival" else 1.0)
+        if sampler == "nuts":
+            log_lik = _race_logp_pt(rt, correct, d, p["mu"], p["varZ"], p["psi"])
+            step = None
+        else:
+            log_lik = LNRM_PointwiseOp()(rt, correct, d, p["mu"], p["varZ"], p["psi"])
+            step = pm.DEMetropolisZ()
         pm.Deterministic("log_likelihood", log_lik)
         pm.Potential("obs", pt.sum(log_lik))                                      # 對應 Stan 的 target +=
 
-        trace = pm.sample(draws=draws, tune=tune, chains=chains, step=pm.DEMetropolisZ(),
-                          random_seed=random_seed, initvals=init_vals,
-                          progressbar=progressbar, **sample_kwargs)
+        kw = dict(draws=draws, tune=tune, chains=chains, random_seed=random_seed, initvals=init_vals,
+                  progressbar=progressbar, **sample_kwargs)
+        if step is not None:
+            kw["step"] = step
+        else:
+            kw["target_accept"] = target_accept
+        trace = pm.sample(**kw)
 
     trace.attrs["link"] = link
-    trace.attrs["L"] = float(L)
+    trace.attrs["L"] = "estimate" if estimate_L else float(L)
+    trace.attrs["ogival_offset"] = float(ogival_offset)
+    trace.attrs["positive_slope"] = bool(positive_slope)
+    trace.attrs["sampler"] = sampler
     trace.attrs["min_rt"] = min_rt
     trace.attrs["fix_params"] = {k: float(v) for k, v in fix_params.items()}
     trace.attrs["intensity_levels"] = [float(v) for v in np.unique(x)]
