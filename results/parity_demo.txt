@@ -1,0 +1,116 @@
+
+================================================================================================
+1. sft::sic (R) vs adaptivesft.sic (Python) on the same 473 correct-trial RTs
+================================================================================================
+  Same data, same statistics, differences at machine precision:
+  SIC(t): max |R - Python| over all t          R:              0   Python: 4.996003611e-16   |diff| = 5.0e-16  OK  
+  D+ (Houpt-Townsend KS-SIC)                   R:   0.3407014441   Python:   0.3407014441   |diff| = 1.1e-16  OK  
+  p(D+) = exp(-2 N D+^2)                       R: 0.001047327702   Python: 0.001047327702   |diff| = 2.0e-18  OK  
+  D-                                           R:  0.04205717654   Python:  0.04205717654   |diff| = 3.5e-17  OK  
+  p(D-)                                        R:   0.9007236541   Python:   0.9007236541   |diff| = 2.2e-16  OK  
+  dominance S.hh > S.hl: p                     R:    0.118441829   Python:    0.118441829   |diff| = 6.1e-16  OK  
+  dominance S.hh > S.lh: p                     R:  0.01916865157   Python:  0.01916865157   |diff| = 6.6e-17  OK  
+  dominance S.hl > S.ll: p                     R: 5.416233018e-10   Python: 5.41623276e-10   |diff| = 2.6e-17  OK  
+  dominance S.lh > S.ll: p                     R: 1.245424874e-10   Python: 1.24542478e-10   |diff| = 9.5e-18  OK  
+  dominance S.hh < S.hl: p                     R:    0.875173319   Python:    0.875173319   |diff| = 3.3e-16  OK  
+  dominance S.hh < S.lh: p                     R:   0.9909478517   Python:   0.9909478517   |diff| = 1.1e-16  OK  
+  dominance S.hl < S.ll: p                     R:   0.9999902592   Python:   0.9999902592   |diff| = 4.4e-16  OK  
+  dominance S.lh < S.ll: p                     R:   0.9645182632   Python:   0.9645182632   |diff| = 3.3e-16  OK  
+  MIC = (LL - LH) - (HL - HH)                  R:   0.3588925848   Python:   0.3588925848   |diff| = 5.6e-17  OK  
+  p(MIC), adjusted rank transform              R: 7.368747466e-09   Python: 7.368747466e-09   |diff| = 1.0e-21  OK  
+  p(MIC), ANOVA                                R: 1.427292905e-06   Python: 1.427292905e-06   |diff| = 7.0e-21  OK  
+
+================================================================================================
+2. diffIRT::simdiffT (R) vs adaptivesft.ddm.simdiffT (Python): 20000 trials each, independent random streams
+================================================================================================
+  Distributional comparison (Monte-Carlo error ~0.005 on P, ~1% on mean RT):
+
+  case psi_range_top: a=1.45, mean drift=1.600, sd drift=0.25, ter=0.1
+  P(upper boundary)                            R:        0.90755   Python:        0.90465   |diff| = 2.9e-03  OK  
+  closed form 1/(1+exp(-a*drift)) (simdiffT.r:6) R:   0.9105199407   Python:   0.9105199407   |diff| = 4.4e-16  OK  
+  mean RT                                      R:   0.4750431016   Python:   0.4733318527   |diff| = 1.7e-03  OK  
+  median RT                                    R:   0.3908590836   Python:   0.3914771002   |diff| = 6.2e-04  OK  
+
+  case psi_range_top_2a: a=2.9, mean drift=1.600, sd drift=0.25, ter=0.1
+  P(upper boundary)                            R:         0.9875   Python:        0.98705   |diff| = 4.5e-04  OK  
+  closed form 1/(1+exp(-a*drift)) (simdiffT.r:6) R:   0.9904346813   Python:   0.9904346813   |diff| = 3.3e-16  OK  
+  mean RT                                      R:    1.010674863   Python:    1.008001995   |diff| = 2.7e-03  OK  
+  median RT                                    R:   0.8452841159   Python:   0.8432236555   |diff| = 2.1e-03  OK  
+
+  case lnrm_mid: a=3, mean drift=1.000, sd drift=0.2, ter=0.1
+  P(upper boundary)                            R:         0.9477   Python:        0.94385   |diff| = 3.9e-03  OK  
+  closed form 1/(1+exp(-a*drift)) (simdiffT.r:6) R:   0.9525741268   Python:   0.9525741268   |diff| = 3.3e-16  OK  
+  mean RT                                      R:    1.480136053   Python:    1.475488558   |diff| = 4.6e-03  OK  
+  median RT                                    R:    1.180453486   Python:     1.18856813   |diff| = 8.1e-03  OK  
+
+  case psi2019_low_colour: a=1.45, mean drift=0.380, sd drift=0.25, ter=0.1
+  P(upper boundary)                            R:         0.6316   Python:        0.63085   |diff| = 7.5e-04  OK  
+  closed form 1/(1+exp(-a*drift)) (simdiffT.r:6) R:   0.6343675675   Python:   0.6343675675   |diff| = 3.3e-16  OK  
+  mean RT                                      R:   0.6046800422   Python:   0.6081009496   |diff| = 3.4e-03  OK  
+  median RT                                    R:   0.4855018369   Python:   0.4870305393   |diff| = 1.5e-03  OK  
+
+================================================================================================
+3. The Psi loop of psiSimulation_functions.R (R, verbatim) vs adaptivesft.psi.Psi (Python), same observer, same uniforms
+================================================================================================
+  simulated observer: alpha=6, beta=15, lapse=0.01  (R :10-12);  300 trials
+  stimulus chosen on every trial identical in R and Python: 300/300
+  response identical on every trial:                      300/300
+  alpha-hat after trial 300 (posterior mean, R :154-163) R:    8.018949867   Python:    8.018949867   |diff| = 1.1e-14  OK  
+  beta-hat  after trial 300                    R:     15.1077079   Python:     15.1077079   |diff| = 7.1e-15  OK  
+  max |alpha-hat diff| over all trials         R:              0   Python: 8.704148513e-14   |diff| = 8.7e-14  OK  
+  max |beta-hat diff|  over all trials         R:              0   Python: 1.492139745e-13   |diff| = 1.5e-13  OK  
+  H = inv.pm.function(.99, alpha-hat, beta-hat) (R :183) R:    46.88129418   Python:    46.88129418   |diff| = 5.7e-14  OK  
+  L = inv.pm.function(.90, ...) (R :184)       R:    27.73333991   Python:    27.73333991   |diff| = 6.4e-14  OK  
+
+  trial   x presented (R)   x (Py)   r   alpha-hat (R)   alpha-hat (Py)   beta-hat (R)   beta-hat (Py)
+      1              10.0     10.0   1       -1.555216        -1.555216      25.500000       25.500000
+      2              -2.0     -2.0   0        6.782922         6.782922      27.504841       27.504841
+      3              14.0     14.0   1        1.407984         1.407984      25.279569       25.279569
+      4              -5.0     -5.0   0        5.562277         5.562277      23.245236       23.245236
+      5              14.0     14.0   1        2.217578         2.217578      20.292864       20.292864
+    300              -9.0     -9.0   0        8.018950         8.018950      15.107708       15.107708
+
+================================================================================================
+4. Converting between the quantities the two branches and the two conventions use
+================================================================================================
+
+  4a. DDM boundary parameter: 'threshold' (26MAR2019.R:117, exponent 2*a*drift) vs 'separation' (diffIRT, exponent a*drift)
+      colour range [-55, 50], thres50 = 6, a = 1.45, v = 1.6;  scaled x = (x - thres50)/(50 - thres50)
+        x (colour units)   scaled   drift   P(correct) threshold   P(correct) separation
+                  50.000    1.000   1.600                 0.9904                  0.9105
+                  53.646    1.083   1.733                 0.9935                  0.9250
+                 101.640    2.174   3.478                 1.0000                  0.9936
+      (50 is the range top; 53.6 and 101.6 are the L and H values hard-coded in psi Simulation_25JUNE2018.R:177,174)
+         target accuracy    x needed, threshold    x needed, separation
+                    0.99                   49.6                    93.1
+                    0.90                   26.8                    47.7
+      -> under 'threshold' the 99% point is the range top (which the 2019 script hard-codes as 50);
+         under 'separation' it is at x = 93, outside the range (which the 2018 run found: 101.6).
+
+  4b. Accuracy target (Psi branch, .99 / .90) <-> accumulator separation target (LNRM branch, h_targ 8.0 / l_targ 1.3)
+      P(correct) = Phi( (z2 - z1) / (varZ * sqrt 2) )   so   targ = varZ * sqrt2 * Phi^-1(p)
+      varZ = 0.6  (0.6 = model_lnrm2.py test value, 0.95 = fitted in results/p6):
+          accuracy ->  separation         separation ->   accuracy
+              0.99 ->       1.974                8.0 ->     1.0000
+              0.90 ->       1.087                1.3 ->     0.9372
+              0.75 ->       0.572                0.5 ->     0.7222
+      varZ = 0.95  (0.6 = model_lnrm2.py test value, 0.95 = fitted in results/p6):
+          accuracy ->  separation         separation ->   accuracy
+              0.99 ->       3.125                8.0 ->     1.0000
+              0.90 ->       1.722                1.3 ->     0.8334
+              0.75 ->       0.906                0.5 ->     0.6451
+      -> Houpt's h_targ = 8.0 is accuracy 1.0000 at any plausible varZ; l_targ = 1.3 is 0.83-0.94.
+         The Psi targets .99/.90 correspond to separations of about 2.0/1.1 at varZ 0.6.
+
+  4c. From a Psi estimate to what the DDM observer actually does at H and L
+      R's own final estimate on the oracle run: alpha-hat = 8.019, beta-hat = 15.108
+       level  target p  x = inv.pm.function   scaled  DDM P, threshold  DDM P, separation
+           H      0.99               46.881    0.929            0.9868             0.8962
+           L      0.90               27.733    0.494            0.9082             0.7588
+      (the oracle observer is a cumulative normal, not a DDM; this shows the mapping, not a recovery)
+
+  4d. R's hard-coded beta grids (psiSimulation_functions.R:17, :224) vs the observer's true beta
+            colour: grid [1, 50]   true beta under separation = 31.2   under threshold = 15.8
+       orientation: grid [1, 10]   true beta under separation = 18.9  (outside grid)   under threshold = 9.65
+      -> only the 'threshold' reading keeps both true betas inside the grids the author wrote.
+

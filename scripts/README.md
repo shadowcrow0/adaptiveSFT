@@ -5,6 +5,7 @@
 | `simulate_lnrm_ogival.py` | `simulateLNRM_ogival.R` | `salience` `convergence` `ppc` `single-dfp` `full-experiment` `all` |
 | `simulate_psi.py` | `psi Simulation_26MAR2019.R` | `convergence` `dfp` `full-experiment` `all` |
 | `_common.py` | — | 共用：命令列、a 慣例迴圈、survivor + SIC 圖、csv |
+| `demo_parity.py` | — | **英文 parity demo**：R 原碼算出的數值（`tests/data/*_r_oracle.json`）vs Python，加上兩條路、兩種 `a` 慣例之間的換算表。不需要 R；oracle 由 `tests/data/make_*_oracle.R` 產生一次 |
 
 兩支都有 `--a-convention {separation,threshold,both}`（預設 `both`），對應 `decisions_for_author.md`
 Decision A：`separation` 是 diffIRT 的定義（repo 字面），`threshold` 是 `psi Simulation_26MAR2019.R:117`
