@@ -65,8 +65,10 @@ def decision_a(quick):
         accH = simdiffT(2000, a, sc(H) * v, sdv, ter, rng=rng, a_is_separation=sep)[1].mean()
         accL = simdiffT(2000, a, sc(L) * v, sdv, ter, rng=rng, a_is_separation=sep)[1].mean()
         print(f"      {name:<12}{al:>10.2f}{be:>10.2f}{H:>15.1f}{accH:>13.3f}{L:>15.1f}{accL:>13.3f}{'yes' if H <= xmax else 'NO':>10}")
-    print("      -> 'threshold' puts H at the range top with ~99% accuracy; 'separation' pushes H past the range,")
-    print("         and the accuracy actually obtained at the estimated H is well below the .99 target.")
+    print("      -> Both estimates are accurate for their own observer (DDM accuracy at H is ~.99 either way).")
+    print("         What differs is whether H is a presentable stimulus: under 'threshold' the 99% point is at")
+    print("         the range top (x ~ 50, the value the 2019 script hard-codes); under 'separation' it is at")
+    print("         x ~ 93, outside the colour range (the 101.6 the 2018 run found).")
 
 
 # ==============================================================================================

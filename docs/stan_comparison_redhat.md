@@ -14,6 +14,8 @@
    tests/data/lnrm_stan_oracle.json ── git add / push ──►  PyMC 後驗 vs json：|Δmean|/sd < .35 等
 ```
 
+在 Arc（Slurm）上請直接看 `docs/hpc_arc_tutorial.md`，那裡有 `sbatch` 腳本；本文是單機版。
+
 ## 1. 裝 R 與 rstan（RHEL / Rocky / Alma 8 或 9）
 
 ```bash

@@ -34,6 +34,7 @@ python scripts/demo_decisions.py # Decision A / B 兩種讀法並排
 | `plan_python_port.md` | 整體移植的盤點、規劃、進度 |
 | `p6_results.md` | 兩支模擬腳本在兩種 `a` 慣例下的完整結果 |
 | `docs/stan_comparison_redhat.md` | 在有 rstan 的機器上做 LNRM 對 Stan 的比對 |
+| `docs/hpc_arc_tutorial.md`、`hpc/` | 在 Arc（Slurm）上建環境、送作業、把 oracle 與 demo 結果推回來 |
 | `plan_grtv3ada_psi_python.md`、`plan_A_implementation.md`、`plan_r_modernization.md`、`bug.md`、`log.md`、`lnrm2_*.md` | 較早的評估與紀錄（有日期，保留） |
 | `model_lnrm2.py`、`model_lnrm2a.py`、`lnrm2_pymc.py` | 套件之前的獨立 PyMC 版，留作對照 |
 | `poc/` | 概念驗證腳本（含一份抄自 AGRT.py 的 Psi，非正式做法） |
