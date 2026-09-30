@@ -79,6 +79,7 @@ pytest                       # 約 3 分鐘；PyMC 的擬合測試用小樣本�
 | `test_sic.py` | KS 統計量 = scipy；五種架構簽名；`sicGroup` 決策表；**與 R `sft::sic` 逐位元比對**（`tests/data/sic_r_oracle.json`，由 `make_sic_oracle.R` 產生一次） |
 | `test_psi.py` | 網格 = R 的 `seq()`；累積常態受試者回復；β 在網格外被釘住；`salience_levels` = `inv.pm.function` |
 | `test_lnrm_vs_stan.py` | **LNRM 對 Stan**：`tests/data/lnrm_stan_oracle.json`（在有 rstan 的機器上由 `make_lnrm_oracle.R` 產生，見 `docs/stan_comparison_redhat.md`）vs `fit_lnrm(link="quadratic")`；oracle 已由 Arc 上的 cmdstanr 2.40.0 產生，五個參數的後驗平均差 ≤ 0.01 SD |
+| `test_experiment.py` | Psi / LNRM 校準控制器在模擬受試者上跑通；DFP 試次表；單人分析判對 PAR-OR |
 | `test_parity_demo.py` | **與 R 原碼逐位元 / 分布對照**：`sft::sic`（1e−12）、`diffIRT::simdiffT`（20000 試分布）、`psiSimulation_functions.R` 的 Psi 迴圈逐試相同（1e−10）；以及正確率 ↔ 分離、兩種 `a` 慣例的換算。`scripts/demo_parity.py` 印成表（英文） |
 
 ## 還沒做（plan_python_port.md P6–P7）

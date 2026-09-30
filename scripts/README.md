@@ -6,6 +6,8 @@
 | `simulate_psi.py` | `psi Simulation_26MAR2019.R` | `convergence` `dfp` `full-experiment` `all` |
 | `_common.py` | — | 共用：命令列、a 慣例迴圈、survivor + SIC 圖、csv |
 | `demo_decisions.py` | — | **英文 Decision A / B demo**：`a` 的兩種讀法、`lnrm2a` 的 ½L / L 與 L 固定 / 估，各自算出的 H / L、正確率、退化與否並排；輸出在 `results/decisions_demo.txt` |
+| `power_scan.py` | — | 漂移差目標 × 每格試次 × 五種架構 → SIC 判對率（每人只擬合一次）；`--a --v --ter --sdv` 換成自己作業的 DDM 參數 |
+| `analyze_participant.py` | — | 一位受試者的 DFP csv → SIC / MIC / dominance → 預測架構（`--json`、`--plot`） |
 | `demo_parity.py` | — | **英文 parity demo**：R 原碼算出的數值（`tests/data/*_r_oracle.json`）vs Python，加上兩條路、兩種 `a` 慣例之間的換算表。不需要 R；oracle 由 `tests/data/make_*_oracle.R` 產生一次 |
 
 兩支都有 `--a-convention {separation,threshold,both}`（預設 `both`），對應 `decisions_for_author.md`
