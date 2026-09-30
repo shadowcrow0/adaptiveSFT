@@ -30,6 +30,7 @@ from adaptivesft.sic import sic_group
 
 # simulateLNRM_ogival.R:24-40
 L_TARG, H_TARG, L = 1.3, 8.0, 10.0
+TARGETS = dict(h_targ=H_TARG, l_targ=L_TARG)     # --acc-high / --acc-low 會換成正確率目標
 A, V, TER, SDV = 3.0, 2.0, 0.1, 0.20
 N_PER_LEVEL, N_LEVELS = 100, 10
 DIMS = {"orientation": ((45.0, 90.0), 63.0), "colour": ((-55.0, 50.0), 6.0)}   # :35-36, :477-485
@@ -53,7 +54,7 @@ def sec_salience(args, conv, sep, rng, dim="orientation"):
           f"最高層理論正確率 {ddm_p_correct(A, scaled[-1] * V, sep):.3f}")
     with Timer("fit ogival"):
         tr = fit_lnrm(data, link="ogival", L=L, **fit_kwargs(args))
-    res = find_salience(tr, h_targ=H_TARG, l_targ=L_TARG)
+    res = find_salience(tr, **TARGETS)
     print(summarize(res))
     high, low = res["high"]["intensity"], res["low"]["intensity"]
     if np.isfinite(high):
@@ -248,7 +249,7 @@ def sec_full_experiment(args, conv, sep, rng, group_hl=None):
             data = moc_ddm(N_PER_LEVEL, a_p, v_p, ter_p, sdv_p, scaled, rng=rng, a_is_separation=sep)
             with Timer(f"S{sn} {dim} fit"):
                 tr = fit_lnrm(data, link="ogival", L=L, **fit_kwargs(args))
-            res = find_salience(tr, h_targ=H_TARG, l_targ=L_TARG)
+            res = find_salience(tr, **TARGETS)
             hl[dim] = (res["high"]["intensity"], res["low"]["intensity"])
             sal.append({"convention": conv, "subject": sn, "dim": dim, "high": hl[dim][0], "low": hl[dim][1],
                         "dropped_high": res["high"]["dropped"], "dropped_low": res["low"]["dropped"]})
@@ -315,7 +316,13 @@ def main():
     ap.add_argument("--n-trials", type=int, default=100)
     ap.add_argument("--arch", default="PAR")
     ap.add_argument("--rule", default="AND")
+    ap.add_argument("--acc-high", type=float, default=None,
+                    help="給了就用正確率當目標（取代 h_targ=8.0 / l_targ=1.3 的漂移差目標）")
+    ap.add_argument("--acc-low", type=float, default=None)
     args = ap.parse_args()
+    global TARGETS
+    TARGETS = (dict(acc_high=args.acc_high, acc_low=args.acc_low) if args.acc_high is not None
+               else dict(h_targ=H_TARG, l_targ=L_TARG))
     if args.quick:
         args.tune, args.draws, args.chains = 500, 500, 4
 

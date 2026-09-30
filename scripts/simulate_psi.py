@@ -28,7 +28,7 @@ from adaptivesft.psi import GRIDS, make_psi, pm_function, salience_levels
 A, V, TER, SDV = 1.45, 1.6, 0.1, 0.25            # psiSimulation_functions.R:96-99
 LAPSE = 0.01                                     # :12, :18
 DIMS = {"colour": ((-55.0, 50.0), 6.0), "orientation": ((45.0, 90.0), 63.0)}
-P_HIGH, P_LOW = 0.99, 0.90                       # :183-184
+P_HIGH, P_LOW = 0.99, 0.90                       # :183-184；--p-high / --p-low 可改
 
 
 def scaled(x, dim):
@@ -204,7 +204,11 @@ def main():
     ap.add_argument("--trials", type=int, default=300, help="每次 Psi 的試次（R 用 300）")
     ap.add_argument("--n-participants", type=int, default=10)
     ap.add_argument("--n-trials", type=int, default=100, help="DFP 每格試次（R dfptrials = 100）")
+    ap.add_argument("--p-high", type=float, default=0.99, help="H 的目標正確率（R :183 用 .99）")
+    ap.add_argument("--p-low", type=float, default=0.90, help="L 的目標正確率（R :184 用 .90）")
     args = ap.parse_args()
+    global P_HIGH, P_LOW
+    P_HIGH, P_LOW = args.p_high, args.p_low
     sections = ("convergence", "dfp", "full-experiment") if args.section == "all" else (args.section,)
     conv_rows, dfp_rows, cal_rows, exp_rows = [], [], [], []
     for conv, sep in conventions(args):
