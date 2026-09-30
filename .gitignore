@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 *.nc
 output/
+stan/lnrm2_array
+stan/*.hpp
+stan/*.o

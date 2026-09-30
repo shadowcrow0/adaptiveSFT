@@ -396,5 +396,5 @@ P0 的決定依「以本 repo 設定為準」定案，P1–P5 已做完並推上
 | P5b Psi 對 R | ✔ 逐試 1e−13，顏色與方位兩組網格 | `tests/test_parity_demo.py` |
 | P5 Psi | ✔（R 逐行移植，不用 AGRT.py） | `tests/test_psi.py` |
 | P6 腳本重寫 | ✔（兩種 a 慣例並排） | `scripts/`、`p6_results.md`、`results/p6/` |
-| P7 文件、CI | ✔ `pyproject.toml`、`.github/workflows/tests.yml`、頂層 README、`issue.md` §8；LNRM 對 Stan 的 oracle 待在有 rstan 的機器上產生（`docs/stan_comparison_redhat.md`） | — |
+| P7 文件、CI | ✔ `pyproject.toml`、`.github/workflows/tests.yml`、頂層 README、`issue.md` §8；LNRM 對 Stan 已比對（cmdstanr 2.40.0，後驗平均差 ≤ 0.01 SD，`tests/test_lnrm_vs_stan.py`） | — |
 

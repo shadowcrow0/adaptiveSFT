@@ -374,4 +374,4 @@ S3 甚至因為新增了 Python/R 兩套「varZ 是 SD 還是 variance」的假�
 | 新：`a` 的意義差 2 倍 | 做成 `a_is_separation` 參數，兩種都跑 | `decisions_for_author.md` A、`p6_results.md` |
 | 新：`.99` 落在範圍外 | `salience_levels(x_range=)` 警告；根因同上 | `adaptivesft/psi.py` |
 | 新：diffIRT 拒絕抽樣在 a·drift ≳ 26 停滯 | a·|drift| > 20 改 Euler 模擬 | `adaptivesft/ddm.py` |
-| 與 R 原碼的比對 | `sft::sic` 1e−12、`simdiffT` 分布、Psi 迴圈逐試 1e−13（顏色、方位兩組網格）；LNRM 對 Stan 待在有 rstan 的機器上產生 oracle | `tests/data/`、`scripts/demo_parity.py` |
+| 與 R 原碼的比對 | `sft::sic` 1e−12、`simdiffT` 分布、Psi 迴圈逐試 1e−13（顏色、方位兩組網格）；LNRM 對 Stan（cmdstanr 2.40.0）五個參數後驗平均差 ≤ 0.01 SD | `tests/data/`、`scripts/demo_parity.py` |

@@ -71,6 +71,21 @@
     300              -9.0     -9.0   0        8.018950         8.018950      15.107708       15.107708
 
 ================================================================================================
+3b. lnrm2.stan fitted by Stan (cmdstanr, R) vs adaptivesft.fit_lnrm(link='quadratic') (PyMC NUTS), same 1000 trials
+================================================================================================
+  oracle: cmdstanr 0.9.0, Stan 2.40.0, 4 chains x 2000 after 2000 warm-up, 61 s
+  Different samplers, so agreement is statistical (posterior means within Monte-Carlo error of the SD):
+  param      truth   Stan mean   PyMC mean   Stan sd   PyMC sd |diff| / sd
+  mu         1.500      1.5472      1.5476    0.0292    0.0295        0.01
+  alpha      0.800      0.7429      0.7427    0.0526    0.0524        0.00
+  alpha2    -0.150     -0.1170     -0.1168    0.0196    0.0195        0.01
+  varZ       0.600      0.6239      0.6241    0.0241    0.0238        0.01
+  psi        0.120      0.1137      0.1135    0.0508    0.0505        0.00
+  The R-side quadratic inversion (adaptiveSFT_functions.R:229-232) applied to Stan's draws vs Python's:
+  salience high (targ 1.6)                     R:    1.379308313   Python:    1.379331878   |diff| = 2.4e-05  OK  
+  salience low (targ 0.6)                      R:   0.4353477383   Python:   0.4354299073   |diff| = 8.2e-05  OK  
+
+================================================================================================
 4. Converting between the quantities the two branches and the two conventions use
 ================================================================================================
 

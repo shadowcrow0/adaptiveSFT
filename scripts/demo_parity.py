@@ -116,6 +116,29 @@ def section_psi():
 
 
 # ----------------------------------------------------------------------------------------------
+def section_lnrm_stan():
+    header("3b. lnrm2.stan fitted by Stan (cmdstanr, R) vs adaptivesft.fit_lnrm(link='quadratic') (PyMC NUTS), "
+           "same 1000 trials")
+    o = load("lnrm_stan_oracle.json")
+    from adaptivesft.models import fit_lnrm, make_data
+    from adaptivesft.salience import find_salience_polynomial
+    d = np.loadtxt(os.path.join(DATA, "lnrm_oracle_input.csv"), delimiter=",", skiprows=1)
+    tr = fit_lnrm(make_data(d[:, 0], d[:, 1], d[:, 2]), link="quadratic", tune=2000, draws=2000, chains=4,
+                  random_seed=20260930)
+    print(f"  oracle: {o['package']}, Stan {o['stan_version']}, 4 chains x 2000 after 2000 warm-up, {o['seconds']:.0f} s")
+    print("  Different samplers, so agreement is statistical (posterior means within Monte-Carlo error of the SD):")
+    print(f"  {'param':<8}{'truth':>8}{'Stan mean':>12}{'PyMC mean':>12}{'Stan sd':>10}{'PyMC sd':>10}{'|diff| / sd':>12}")
+    for r in o["summary"]:
+        v = tr.posterior[r["name"]].values.ravel()
+        print(f"  {r['name']:<8}{o['truth'][r['name']]:>8.3f}{r['mean']:>12.4f}{v.mean():>12.4f}{r['sd']:>10.4f}"
+              f"{v.std():>10.4f}{abs(v.mean() - r['mean']) / r['sd']:>12.2f}")
+    res = find_salience_polynomial(tr, o["salience"]["h_targ"], o["salience"]["l_targ"], alpha2_rule="all_draws")
+    print("  The R-side quadratic inversion (adaptiveSFT_functions.R:229-232) applied to Stan's draws vs Python's:")
+    for name in ("high", "low"):
+        row(f"salience {name} (targ {o['salience'][name[0] + '_targ']})", o["salience"][name], res[name]["intensity"], 0.03)
+
+
+# ----------------------------------------------------------------------------------------------
 def section_conversions():
     header("4. Converting between the quantities the two branches and the two conventions use")
 
@@ -181,5 +204,9 @@ if __name__ == "__main__":
         section_psi()
     else:
         print("\n(psi_r_oracle.json not found: run Rscript tests/data/make_psi_oracle.R)")
+    if os.path.exists(os.path.join(DATA, "lnrm_stan_oracle.json")):
+        section_lnrm_stan()
+    else:
+        print("\n(lnrm_stan_oracle.json not found: run Rscript tests/data/make_lnrm_oracle.R on a machine with Stan)")
     section_conversions()
     print()

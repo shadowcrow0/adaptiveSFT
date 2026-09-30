@@ -43,4 +43,4 @@ python scripts/demo_decisions.py # Decision A / B 兩種讀法並排
 
 - `lnrm0 / lnrm1 / lnrm2a.stan`、`post95.Rdata`、兩個輸入 csv 不在 repo 裡；Python 的對應是重建，不是原檔。
 - `decisions_for_author.md` 的兩個決定未定；程式把兩種讀法都做成參數，預設是 repo 字面。
-- LNRM 對 Stan 的比對需要有 rstan 的機器（`docs/stan_comparison_redhat.md`）；oracle 進 repo 後 `pytest` 會自動比。
+- LNRM 對 Stan 的比對已完成（Arc 上 cmdstanr 2.40.0 產生 `tests/data/lnrm_stan_oracle.json`）：五個參數的後驗平均差 ≤ 0.01 個後驗 SD，`tests/test_lnrm_vs_stan.py` 常駐。
