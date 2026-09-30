@@ -55,16 +55,25 @@ def inv_pm_function(y, a, b, d):
 
 
 class Psi:
-    """Est.Trial.Psi.* 的內部狀態。陣列順序同 R：[r, a, b, x]。"""
+    """
+    Est.Trial.Psi.* 的內部狀態。陣列順序同 R：[r, a, b, x]。
 
-    def __init__(self, x, a, b, d=0.01, prior=None):
+    lower / upper：反應函數的兩端漸近線。預設 None = R 的 pm.function（兩端各 d/2）。
+    yes/no 的工作記憶作業（VAWM）在 x = 0（探測 = 目標）時「答不同」的機率是假警報率，不是 d/2，
+    給 lower=假警報率、upper=lapse 就是 P(r=1|x) = lower + (1 − lower − upper)·Φ((x − α)/β)。
+    """
+
+    def __init__(self, x, a, b, d=0.01, prior=None, lower=None, upper=None):
         self.x = _seq(*x)
         self.a = _seq(*a)
         self.b = _seq(*b)
         self.d = float(d)
+        self.lower = float(d) / 2 if lower is None else float(lower)
+        self.upper = float(d) / 2 if upper is None else float(upper)
         self.r = np.array([0, 1])
-        # :31-40  P(R | L, X)
-        pm = pm_function(self.x[None, None, :], self.a[:, None, None], self.b[None, :, None], self.d)  # [a, b, x]
+        # :31-40  P(R | L, X)；lower/upper 都是 d/2 時 = pm.function
+        pm = self.lower + (1.0 - self.lower - self.upper) * stats.norm.cdf(
+            self.x[None, None, :], self.a[:, None, None], self.b[None, :, None])                  # [a, b, x]
         self.pR_LX = np.stack([1.0 - pm, pm])                                                     # [r, a, b, x]
         # :45-49  P(L)
         if prior is None:
@@ -90,8 +99,19 @@ class Psi:
 
     def update(self, response):
         """R :112-114：作答（0/1）後更新 pL，重算下一題。"""
-        self.pL = self.pL_XR[int(response), :, :, self.next_index]
+        self.update_at(self.next_index, response)
+
+    def update_at(self, index, response):
+        """
+        用「實際呈現的」網格點 index 更新（貝氏更新不要求那一題是熵最小的那個 x）。
+        給刺激只能取離散值的維度用（例：VAWM 的子音混淆度，Psi 提的 x 要貼到最近的可用 foil）。
+        index == next_index 時與 R 逐字相同。
+        """
+        self.pL = self.pL_XR[int(response), :, :, int(index)]
         self._recompute()
+
+    def nearest_index(self, x):
+        return int(np.argmin(np.abs(self.x - float(x))))
 
     def estimate(self):
         """R :154-163：後驗平均 (α̂, β̂)。"""
@@ -102,10 +122,10 @@ class Psi:
     estimateLambda = estimate
 
 
-def make_psi(dim=None, x=None, a=None, b=None, d=None, prior=None):
+def make_psi(dim=None, x=None, a=None, b=None, d=None, prior=None, lower=None, upper=None):
     """
     用 R 的網格常數建一個 Psi：make_psi("colour") / make_psi("orientation")，
-    或自己給 x / a / b = (下限, 上限, 步長)、d。
+    或自己給 x / a / b = (下限, 上限, 步長)、d；lower / upper 見 Psi。
     """
     g = dict(GRIDS[dim]) if dim is not None else {}
     if x is not None:
@@ -119,16 +139,22 @@ def make_psi(dim=None, x=None, a=None, b=None, d=None, prior=None):
     missing = {"x", "a", "b"} - set(g)
     if missing:
         raise ValueError(f"缺網格 {sorted(missing)}：給 dim 或自己給 x / a / b")
-    return Psi(g["x"], g["a"], g["b"], g.get("d", 0.01), prior)
+    return Psi(g["x"], g["a"], g["b"], g.get("d", 0.01), prior, lower=lower, upper=upper)
 
 
-def salience_levels(alpha, beta, delta, p_list, x_range=None):
+def salience_levels(alpha, beta, delta, p_list, x_range=None, lower=None, upper=None):
     """
     psiSimulation_functions.R:183-184：同一側多個目標正確率（原碼 .99 / .90）→ 刺激值。
     回傳 (levels, warnings)；給 x_range 時，落在範圍外的目標會進 warnings
     （原作者自己的 .99 就在範圍外：psi Simulation_25JUNE2018.R:174 = 101.6 > 50）。
+    lower / upper 給了就用一般化的漸近線：x = α + β·Φ⁻¹((p − lower)/(1 − lower − upper))。
     """
-    levels = [float(inv_pm_function(p, alpha, beta, delta)) for p in p_list]
+    if lower is None and upper is None:
+        levels = [float(inv_pm_function(p, alpha, beta, delta)) for p in p_list]
+    else:
+        lo = float(delta) / 2 if lower is None else float(lower)
+        hi = float(delta) / 2 if upper is None else float(upper)
+        levels = [float(stats.norm.ppf((p - lo) / (1 - lo - hi), alpha, beta)) for p in p_list]
     warnings = []
     if x_range is not None:
         for p, x in zip(p_list, levels):

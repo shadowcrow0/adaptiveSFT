@@ -65,3 +65,21 @@ def test_salience_levels_match_inv_pm_function_and_warn():
     assert levels[0] < 50 and not warns
     levels2, warns2 = salience_levels(a, 32.0, d, [0.99, 0.90], x_range=(-55, 50))
     assert levels2[0] > 50 and len(warns2) == 1        # psi Simulation_25JUNE2018.R:174 的情況
+
+
+def test_asymptotes_and_update_at():
+    from adaptivesft.psi import Psi
+    psi = make_psi("colour")                                  # 預設 = R：兩端 d/2
+    assert psi.lower == psi.upper == 0.005
+    p2 = Psi((0, 40, 1), (0, 40, 1), (1, 20, 1), d=0.02, lower=0.15, upper=0.02)
+    assert abs(p2.pR_LX[1, 0, 0, 0] - (0.15 + 0.83 * norm.cdf(0, 0, 1))) < 1e-12
+    # update_at 在 next_index 上 = update；在別的點上也是合法的貝氏更新
+    a = make_psi("colour"); b = make_psi("colour")
+    a.update(1); b.update_at(b.next_index, 1)
+    assert np.allclose(a.pL, b.pL) and a.next_intensity == b.next_intensity
+    idx = b.nearest_index(12.3)
+    assert b.x[idx] == 12.0
+    b.update_at(idx, 0)
+    assert abs(b.pL.sum() - 1) < 1e-12
+    lv, _ = salience_levels(5.0, 10.0, 0.02, [0.9], lower=0.15, upper=0.02)
+    assert abs(lv[0] - (5.0 + 10.0 * norm.ppf((0.9 - 0.15) / 0.83))) < 1e-12
