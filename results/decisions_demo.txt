@@ -1,0 +1,47 @@
+====================================================================================================
+DECISION A - what does `threshold` (a) mean?   psiSimulation_functions.R:96-99, 26MAR2019.R:117
+====================================================================================================
+  A1. The same script parameters, the two readings, evaluated at the colour range top (x = 50):
+      reading       separation given to simdiffT  P(correct) closed form  x for 99%  x for 90%
+      separation                            1.45                  0.9105       93.1       47.7
+      threshold                             2.90                  0.9904       49.6       26.8
+      author's numbers: 2018 run H = 101.6 (25JUNE2018.R:174); 2019 revision H = 50 (26MAR2019.R:208)
+  A2. Psi calibration (300 trials, R grids) of a DDM observer under each reading, colour dimension:
+      reading      alpha-hat  beta-hat  H=inv.pm(.99) DDM acc at H  L=inv.pm(.90) DDM acc at L in range?
+      separation       10.02     32.78           94.3        0.992           52.8        0.922        NO
+      threshold         9.30     16.76           52.4        0.992           31.2        0.926        NO
+      -> Both estimates are accurate for their own observer (DDM accuracy at H is ~.99 either way).
+         What differs is whether H is a presentable stimulus: under 'threshold' the 99% point is at
+         the range top (x ~ 50, the value the 2019 script hard-codes); under 'separation' it is at
+         x ~ 93, outside the colour range (the 101.6 the 2018 run found).
+====================================================================================================
+DECISION B - the ogival LNRM: (1/2)L or L offset, L fixed or estimated, and what 8.0 / 1.3 mean
+====================================================================================================
+  B1. Simulate from each reading of the offset, fit each reading: does the model degenerate?
+      data: 800 trials, slope 2, midpoint 1.5, mu 1.5, varZ 0.6, psi 0.12, L = 10
+      (1/2)L              0.969     0.483 | (1/2)L             1.949        1.489    0.620           0          0.000
+      (1/2)L              0.969     0.483 | L                  1.019        2.594    0.754           0          0.000
+      L                   0.995     0.148 | (1/2)L             3.586        1.124    0.479           0          0.000
+      L                   0.995     0.148 | L                  1.977        1.488    0.596           0          0.000
+      -> with the full-L offset the simulated task is at ceiling (accuracy ~.995, median RT ~ psi):
+         the data log.md called degenerate. NUTS still recovers slope / midpoint when the fitted
+         reading matches the generating one; a mismatched reading is biased (slope ~1.0 or ~3.6).
+         The (1/2)L reading yields a task with ordinary accuracy (~.97), which is what L = 'max
+         separation' (simulateLNRM_ogival.R:26) and the c(-.5,.5)*L plot code (:206-209) imply.
+  B2. L fixed at 10 vs L estimated, on the (1/2)L data, and what the targets 8.0 / 1.3 become:
+      L              L-hat slope-hat varZ-hat |  H (targ 8.0) reachable acc at H |  L (targ 1.3) reachable acc at L
+      10.0           10.00     1.978    0.593 |         2.197    100.0%   1.0000 |         0.534    100.0%   0.9394
+      estimate        9.92     1.998    0.590 |         2.208    100.0%   1.0000 |         0.540    100.0%   0.9406
+      calibrated intensity range: [0, 3].  targ 8.0 = z2 - z1 of 8 out of a maximum L = 10.
+  B3. Separation targets <-> accuracy, at the varZ values seen in practice:
+        varZ  targ 8.0 -> acc  targ 1.3 -> acc  acc .99 -> targ  acc .90 -> targ
+        0.60           1.0000           0.9372            1.974            1.087
+        0.95           1.0000           0.8334            3.125            1.722
+        1.50           0.9999           0.7300            4.935            2.719
+      -> h_targ = 8.0 is ceiling accuracy whatever varZ is; the Psi branch's .99 / .90 are separations
+         of about 2 / 1 - four times smaller than 8.0. The two branches are calibrating different things.
+  B4. DDM observer of simulateLNRM_ogival.R (a = 3, v = 2): where do H and L land under (1/2)L, L = 10?
+      high: scaled intensity 1.747 (calibrated range [-0.67, 1.00], OUTSIDE), DDM P(correct) there = 1.0000, dropped draws 0.0%
+      low: scaled intensity 0.612 (calibrated range [-0.67, 1.00]), DDM P(correct) there = 0.9752, dropped draws 0.0%
+      -> the LNRM branch's H is outside the calibrated range for the same reason the Psi branch's .99 is:
+         both ask for a level the observer only reaches beyond the stimulus range.

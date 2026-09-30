@@ -96,8 +96,11 @@ def decision_b(quick):
                   f"{'(1/2)L' if fit_off == 0.5 else 'L':<14}{float(post['slope'].values.mean()):>10.3f}"
                   f"{float(post['midpoint'].values.mean()):>13.3f}{float(post['varZ'].values.mean()):>9.3f}"
                   f"{int(tr.sample_stats['diverging'].sum()):>12d}{float((post['slope'].values <= 0).mean()):>15.3f}")
-    print("      -> with the full-L offset the simulated task is at ceiling (accuracy ~1, RT collapsed to psi),")
-    print("         which is the degeneracy log.md reports; the (1/2)L reading gives an ordinary data set.")
+    print("      -> with the full-L offset the simulated task is at ceiling (accuracy ~.995, median RT ~ psi):")
+    print("         the data log.md called degenerate. NUTS still recovers slope / midpoint when the fitted")
+    print("         reading matches the generating one; a mismatched reading is biased (slope ~1.0 or ~3.6).")
+    print("         The (1/2)L reading yields a task with ordinary accuracy (~.97), which is what L = 'max")
+    print("         separation' (simulateLNRM_ogival.R:26) and the c(-.5,.5)*L plot code (:206-209) imply.")
 
     print("\n  B2. L fixed at 10 vs L estimated, on the (1/2)L data, and what the targets 8.0 / 1.3 become:")
     d = d_numpy("ogival", x, truth, L)
