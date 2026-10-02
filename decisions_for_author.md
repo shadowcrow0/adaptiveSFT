@@ -6,6 +6,15 @@ under "original code" is verbatim. Numbers under "actual output" were computed i
 (Python port in `adaptivesft/`, or the R scripts' own arithmetic); numbers under "expected output"
 are what the surrounding code and comments assume.
 
+**Status (2026-10-02).** The author chose **B** for the real SFT experiment (Visual_AudioWM,
+`VAWM_calibrate.py`, `METHOD = "lnrm"`): salience is calibrated on the LNRM branch with targets in
+**drift-rate separation** (`h_targ` / `l_targ`, A.6 item 3), and the ogival model follows this
+repository's rebuild (B.6 item 4: `½·L·inv_logit`, `L = 10` fixed, `Normal(0, 2)` priors, raw
+intensity). The quadratic `lnrm2` (the file that exists, verified against Stan) is the default
+link; `LINK = "ogival"` switches to `lnrm2a` under the conventions above. Decision A is left as
+documented: it only affects the DDM simulations and the accuracy-target Psi branch, which the
+experiment no longer uses for salience. B.6 items 1–3 remain unknowable without the lost files.
+
 ---
 
 ## Decision A — the DDM boundary parameter, and why the .99 salience level lands outside the stimulus range
