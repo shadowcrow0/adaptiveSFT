@@ -39,6 +39,20 @@ python scripts/demo_decisions.py # Decision A / B 兩種讀法並排
 | `model_lnrm2.py`、`model_lnrm2a.py`、`lnrm2_pymc.py` | 套件之前的獨立 PyMC 版，留作對照 |
 | `poc/` | 概念驗證腳本（含一份抄自 AGRT.py 的 Psi，非正式做法） |
 
+## 三年後要改東西，從哪個測試開始
+
+| 模組 | 對應的測試 | 改之前先跑 |
+|---|---|---|
+| `adaptivesft/race.py`（賽跑 likelihood） | `tests/test_race.py` | 密度積分 = 1、與 R 的 `dlognormalrace` 同值 |
+| `adaptivesft/models.py`（PyMC 擬合） | `tests/test_models.py`、`tests/test_lnrm_vs_stan.py` | 後者對 Stan 的後驗（`tests/data/lnrm_stan_oracle.json`） |
+| `adaptivesft/salience.py`（反解 H/L） | `tests/test_salience.py` | 四種 `alpha2_rule` 的行為 |
+| `adaptivesft/ddm.py`（DDM 模擬） | `tests/test_ddm.py` | 對 R `diffIRT::simdiffT` 的分布 |
+| `adaptivesft/sic.py`（SIC / MIC） | `tests/test_sic.py` | 對 R `sft::sic` 逐位元 |
+| `adaptivesft/psi.py`（Psi） | `tests/test_psi.py`、`tests/test_parity_demo.py` | 對 R 逐試 1e−13 |
+| `adaptivesft/experiment.py`（真人實驗用） | `tests/test_experiment.py` | |
+
+套件版本鎖在 `requirements-lock.txt`（Python 3.11）；三年後 `pip install -e .` 裝到新版 PyMC 跑不起來時，先用 lock 檔重建。
+
 ## 還沒有的
 
 - `lnrm0 / lnrm1 / lnrm2a.stan`、`post95.Rdata`、兩個輸入 csv 不在 repo 裡；Python 的對應是重建，不是原檔。
