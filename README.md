@@ -39,6 +39,11 @@ python scripts/demo_decisions.py # Decision A / B 兩種讀法並排
 | `model_lnrm2.py`、`model_lnrm2a.py`、`lnrm2_pymc.py` | 套件之前的獨立 PyMC 版，留作對照 |
 | `poc/` | 概念驗證腳本（含一份抄自 AGRT.py 的 Psi，非正式做法） |
 
+## 自己學會寫這個模型：`learn/`
+
+五個練習（Normal → 位移對數常態 → 賽跑 likelihood → 完整 lnrm2 → 反解 H/L），每題自己寫、
+`python learn/check.py exN` 對答案（ex4 直接對 Stan 的後驗）。規則與進度表在 `learn/README.md`。
+
 ## 三年後要改東西，從哪個測試開始
 
 | 模組 | 對應的測試 | 改之前先跑 |
