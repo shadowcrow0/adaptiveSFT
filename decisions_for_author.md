@@ -1,5 +1,14 @@
 # Two open decisions in adaptiveSFT — what the code says, what it produces, and what has to be decided
 
+This document lists the two places where your R code can be read in two different ways, shows
+what each reading produces, and asks you to say which one you meant.
+
+**An analogy.** Imagine a recipe that says "add one cup of flour", written by someone whose cup
+holds twice as much as everyone else's. The recipe still works in their kitchen. In any other
+kitchen the bread comes out wrong, and nobody can tell from the recipe alone which cup was meant.
+Both decisions below are of that kind: the code runs, but a number inside it means two different
+things depending on who is reading, and the published results depend on which one.
+
 Date: 2026-09-27. Line numbers refer to the files in this repository as of commit `445f6ec`;
 `diffIRT` and `sft` line numbers refer to the CRAN sources (github.com/cran). Everything quoted
 under "original code" is verbatim. Numbers under "actual output" were computed in this session
@@ -15,9 +24,42 @@ link; `LINK = "ogival"` switches to `lnrm2a` under the conventions above. Decisi
 documented: it only affects the DDM simulations and the accuracy-target Psi branch, which the
 experiment no longer uses for salience. B.6 items 1–3 remain unknowable without the lost files.
 
+## Terms used below
+
+Each is explained once here so the sections can stay short.
+
+| Term | Plain meaning |
+|---|---|
+| **DDM** | Drift diffusion model. A decision is evidence piling up until it hits one of two walls: the upper wall is "correct", the lower is "incorrect". |
+| **drift rate** (`v`, `drift`) | How fast the evidence piles up. Clearer stimulus, faster drift. |
+| **boundary separation** (`a`) | The distance between the two walls. The DDM usually starts half-way between them. |
+| **`simdiffT`** | The function in the `diffIRT` package that simulates one DDM trial. It is the "observer" in the Psi simulations. |
+| **psychometric function** | A curve of accuracy against stimulus intensity. Its two numbers here are α (where it crosses 50%) and β (how steep it is). |
+| **Psi** | An adaptive procedure that picks each trial's intensity to estimate α and β as fast as possible. |
+| **salience levels H / L** | The two intensities the experiment will use: H ("high") and L ("low"). On the Psi branch they are read off the fitted curve at 99% and 90% accuracy. |
+| **LNRM** | Log-normal race model. Two "accumulators" (one for the correct response, one for the incorrect) race; the first to finish wins. |
+| **`lnrm2` / `lnrm2a`** | Two Stan files. `lnrm2` lets the gap between the accumulators grow as a quadratic in intensity; `lnrm2a` (the missing file) lets it follow an S-shaped (ogival, logistic) curve that flattens out at a ceiling `L`. |
+| **posterior**, **draw** | After seeing data, the model's belief about each parameter is a distribution (the posterior). A sampler produces thousands of samples from it (draws). |
+| **prior** | What the model assumes about a parameter before seeing data. |
+| **R-hat**, **ESS** | Two health checks on a sampler. R-hat near 1 means the chains agree; ESS is how many independent samples the draws are worth. R-hat > 2 and ESS ≈ 10 mean the fit is junk. |
+| **DFP / SIC** | Double factorial paradigm and the survivor interaction contrast: the experiment stage that uses H and L and reads off the processing architecture from response times. |
+
 ---
 
 ## Decision A — the DDM boundary parameter, and why the .99 salience level lands outside the stimulus range
+
+**What is at stake.** The Psi simulation builds a fake participant out of a DDM and then checks
+whether Psi can find the intensity at which that participant is 99% correct. One number,
+`threshold` (passed to `simdiffT` as `a`), is treated as the *full* distance between the DDM's
+two walls in one line of code and as *half* of that distance in another. The simulated
+participant is therefore half as sensitive as the script believes, and the 99% point ends up
+outside the range of intensities the display can show. That is where the puzzling value 101.6
+in the 2018 script comes from.
+
+**Analogy.** A road is 10 m wide. One person writes "width = 10" (kerb to kerb); another writes
+"width = 5" (centre line to kerb). Both are describing the same road, but if you hand "5" to a
+tool that expects kerb-to-kerb, it builds a road half as wide, and every car on it behaves
+differently. Here the "tool" is `simdiffT`, which expects kerb-to-kerb.
 
 ### A.1 Original code
 
@@ -80,6 +122,9 @@ i.e.
 ```
    P(upper boundary) = 1 / (1 + exp(−a · drift))
 ```
+
+Note the two formulas: the script's line 117 has a `2` in the exponent (via the `exp(−…)` term
+in the denominator); `simdiffT` does not.
 
 ### A.2 Purpose
 
@@ -189,6 +234,19 @@ not silently apply either fix.
 
 ## Decision B — the ogival LNRM (`lnrm2a.stan`): per-accumulator offset vs total separation, and the priors
 
+**What is at stake.** The second salience method fits an LNRM whose gap between the two
+accumulators follows an S-shaped curve with a ceiling `L = 10`, then asks for the intensities
+where the gap equals 8.0 (H) and 1.3 (L). The Stan file that defines this model, `lnrm2a.stan`,
+is not in the repository and never was. From the R code that uses its output we can reconstruct
+most of it, but not all: whether the ceiling applies to the whole gap or to each accumulator
+separately, whether `L` was fixed or estimated, and what priors were used. One of those
+readings makes the model fit; the other makes it unfittable.
+
+**Analogy.** You find a note saying "the two runners finish 10 seconds apart at most". Does that
+mean each runner is up to 5 seconds from the midpoint (gap 10), or each is up to 10 seconds from
+it (gap 20)? Both are consistent with the note. Only the original stopwatch sheet — the missing
+file — says which.
+
 ### B.1 Original code
 
 `lnrm2a.stan` is referenced but not in the repository (it has never been in any commit). Its
@@ -238,6 +296,9 @@ For comparison, the accumulator means in the model that *does* exist (`lnrm2.sta
       z[2,tr] = mu + alpha * intensity[tr] + alpha2 * square_intensity[tr];
 ```
 
+(`inv_logit` is the S-shaped curve that runs from 0 to 1; `logit` is its inverse. `z[1]` and
+`z[2]` are the log-scale mean finishing times of the two accumulators.)
+
 ### B.2 Purpose
 
 `lnrm2a` replaces the quadratic difficulty curve of `lnrm2` with a logistic (ogival) one so that
@@ -257,6 +318,10 @@ Actual (`log.md`, N = 1000, 8 chains × 3000):
 |---|---|---|
 | `z = mu ∓ L·inv_logit(...)` (offset = full L) | 0.99, median RT collapsed to ψ + 0.15 s | slope / midpoint not recovered, R-hat > 2, ESS ≈ 10 |
 | `z = mu ∓ ½·L·inv_logit(...)` (offset = L/2) | 0.965 | all five parameters recovered, R-hat ≤ 1.01 |
+
+In plain terms: with the full `L` on each accumulator the fake participant is perfect and
+instant, and the sampler has nothing to learn from; with `½·L` it behaves like a real participant
+and every parameter comes back.
 
 And, separately, the second rebuild in `Visual_AudioWM/adaptivesft` (which estimates `L` as a free
 parameter `D` instead of fixing 10) finds that on its own simulated data `h_targ = 8.0` and
@@ -306,6 +371,9 @@ so at `L = 10`, `varZ = 0.6`: `Φ(10 / 0.85) ≈ 1`; at `L = 2`: `Φ(2.36) ≈ 0
 with `L` and `varZ`. That is why the Psi branch (accuracy targets) and the LNRM branch
 (separation targets) cannot be reconciled without fixing these numbers (see Decision A.6, item 3).
 
+(Φ is the standard normal cumulative distribution: the probability that a normal variable falls
+below a given value.)
+
 ### B.6 What has to be decided
 
 1. **Confirm the `transformed parameters` block of `lnrm2a.stan`**: is it
@@ -320,3 +388,25 @@ with `L` and `varZ`. That is why the Psi branch (accuracy targets) and the LNRM 
    `Normal(0, 2)` priors, raw intensity, separation-unit targets with an accuracy converter);
    the alternative is documented above. This choice changes the numbers `find_salience` returns
    and must be made before any salience values are used in an experiment.
+
+---
+
+## So what do I do
+
+If you are the original author, three things would settle most of this:
+
+1. **Say which `a` you meant** (A.6 item 1): kerb-to-kerb (diffIRT's `a`) or centre-to-kerb
+   (your variable name `threshold` and line 117). One sentence is enough; the code changes that
+   follow from each answer are listed in A.6.
+2. **Look for `lnrm2a.stan`**, and failing that `post95.Rdata` or any `*_SFTresults.csv` from the
+   ogival runs (B.6 items 1–3). Even a screenshot of the `transformed parameters` block answers
+   item 1; the fitted `L` values answer item 2.
+3. **Confirm the rebuild in the Status paragraph is what you want** (B.6 item 4): `½·L·inv_logit`,
+   `L = 10` fixed, `Normal(0, 2)` priors, raw intensity, targets in separation units. If so,
+   nothing further is needed for the running experiment. If not, say which column of the B.4
+   table you prefer, and whether the H/L targets should be stated in accuracy or in separation
+   units (A.6 item 3).
+
+If you are a reader rather than the author: the running experiment uses choice **B** as stated
+in the Status paragraph; Decision A affects only the simulations, and `adaptivesft/ddm.py`
+exposes both readings of `a` so either can be re-run.
