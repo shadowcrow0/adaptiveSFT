@@ -105,7 +105,7 @@ repo 裡的 `.md` 檔是決策紀錄和說明。先看前四個就夠。
 |---|---|---|
 | `adaptivesft/race.py`（賽跑 likelihood） | `tests/test_race.py` | 密度積分 = 1、與 R 的 `dlognormalrace` 同值 |
 | `adaptivesft/models.py`（PyMC 擬合） | `tests/test_models.py`、`tests/test_lnrm_vs_stan.py` | 後者對 Stan 的後驗（`tests/data/lnrm_stan_oracle.json`） |
-| `adaptivesft/salience.py`（反解 H/L） | `tests/test_salience.py` | 四種 `alpha2_rule` 的行為 |
+| `adaptivesft/salience.py`（反解 H/L） | `tests/test_salience.py` | 五種 `alpha2_rule` 的行為 |
 | `adaptivesft/ddm.py`（DDM 模擬） | `tests/test_ddm.py` | 對 R `diffIRT::simdiffT` 的分布 |
 | `adaptivesft/sic.py`（SIC / MIC） | `tests/test_sic.py` | 對 R `sft::sic` 逐位元 |
 | `adaptivesft/psi.py`（Psi） | `tests/test_psi.py`、`tests/test_parity_demo.py` | 對 R 逐試 1e−13 |
