@@ -398,3 +398,21 @@ P0 的決定依「以本 repo 設定為準」定案，P1–P5 已做完並推上
 | P6 腳本重寫 | ✔（兩種 a 慣例並排） | `scripts/`、`p6_results.md`、`results/p6/` |
 | P7 文件、CI | ✔ `pyproject.toml`、`.github/workflows/tests.yml`、頂層 README、`issue.md` §8；LNRM 對 Stan 已比對（cmdstanr 2.40.0，後驗平均差 ≤ 0.01 SD，`tests/test_lnrm_vs_stan.py`） | — |
 
+
+## 11. 進度（2026-10-18）
+
+```
+   adaptiveSFT（Python 版）                        Visual_AudioWM（真人實驗）
+   ──────────────────────────────────────         ──────────────────────────────────────
+   ✔ 七個模組移植完、對 R / Stan 驗證過            ✔ VAWM_calibrate.py（lnrm / psi 兩種）
+   ✔ 決定 B 定案；A 只影響模擬，未定              ✔ make_adaptive_blocks.py → block csv
+   ✔ power scan：2.0 / 0.5 配 quadratic           ✔ analyze_vawm：VAWM csv → SIC / MIC
+   ✔ learn/ 五個練習 + 檢查器                     ✔ DECISIONS.md、adaptive_vawm.md、Figure 1（APA）
+   ✔ requirements-lock.txt                        ✔ 10 個測試（容器）；PsychoPy 只 py_compile
+                                                  ✘ 實驗機器建環境（Python 3.10 + PsychoPy + adaptiveSFT）
+                                                  ✘ 第一位受試者的校準（真資料還沒有）
+                                                  ✘ 聲音刺激：圖說 [bi]/[pi]，程式仍是 16 子音混淆表——要定
+                                                  ✘ DFP 每格 108 試 < power scan 的 250——要加 block 或改每組探測數
+```
+
+下一步只有一件事是程式以外的人能做的：在實驗室機器跑 `VAWM_calibrate.py`，把 `data/<subj>_calib.json` 拿回來。
