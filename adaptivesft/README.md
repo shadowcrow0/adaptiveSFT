@@ -38,6 +38,7 @@
          │
          ▼
    fit_lnrm(link=none|linear|quadratic|ogival)   models.py + race.py    ← lnrm0/1/2/2a.stan + rstan
+   fit_lnrm_v2(同上)                              models_v2.py           ← 同模型，likelihood 全用 PyMC 內建拼
          │  後驗 {mu, alpha, alpha2 | slope, midpoint, varZ, psi}
          ▼
    find_salience(h_targ, l_targ | acc_high, acc_low)   salience.py     ← find_salience_polynomial / _ogival
@@ -146,6 +147,7 @@ pytest                       # 約 3 分鐘；PyMC 的擬合測試用小樣本�
 |---|---|
 | `test_race.py` | numba 逐題 logp vs scipy 封閉式（1e−10）；密度總積分 = 1；`plognormalrace` vs 蒙地卡羅 |
 | `test_models.py` | Op = numba；四種 link 小樣本回收；`fix_params` |
+| `test_models_v2.py` | v2：逐題 logp 對 v1 < 1e−6；擬合對 v1 與 Stan；`pm.sample_posterior_predictive` 能跑 |
 | `test_salience.py` | 反解回代；五種 `alpha2_rule`；ogival 反解 = R `adaptiveSFT_functions.R:194-195` 公式；正確率介面 |
 | `test_ddm.py` | 反應機率 = `simdiffT.r:6`；`sv = 0` 平均 RT = 解析式 |
 | `test_sic.py` | KS 統計量 = scipy；五種架構簽名；`sicGroup` 決策表；**與 R `sft::sic` 逐位元比對**（`tests/data/sic_r_oracle.json`，由 `make_sic_oracle.R` 產生一次） |

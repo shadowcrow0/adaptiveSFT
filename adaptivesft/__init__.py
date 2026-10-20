@@ -3,6 +3,7 @@ adaptivesft —— adaptiveSFT（Houpt 2018–2019，R + Stan）的 Python 版�
 
     race.py       賽跑 likelihood / 密度 / CDF      ← adaptiveSFT_functions.R:61-111、lnrm2.stan:37-44
     models.py     lnrm0 / lnrm1 / lnrm2 / lnrm2a    ← lnrm2.stan（其餘三支原檔遺失，重建）
+    models_v2.py  同上，likelihood 全用 PyMC 內建（LogNormal logp/logcdf、CustomDist）
     salience.py   反解 high / low                    ← adaptiveSFT_functions.R:180-281
     ddm.py        simdiffT / moc_ddm / dfp_ddm      ← diffIRT、adaptiveSFT_functions.R:115-165
     sic.py        sic / sicGroup                    ← sft/R/sic.R
@@ -15,6 +16,7 @@ adaptivesft —— adaptiveSFT（Houpt 2018–2019，R + Stan）的 Python 版�
 from .experiment import LNRMCalibrator, PsiCalibrator, analyze_participant, dfp_trial_list, report
 from .ddm import A_CONVENTIONS, ddm_mean_dt, ddm_p_correct, dfp_ddm, draw_participant, moc_ddm, separation, simdiffT
 from .models import LINKS, d_numpy, fit_lnrm, fit_lnrm0_by_level, make_data
+from .models_v2 import fit_lnrm_v2
 from .psi import GRIDS, Psi, inv_pm_function, make_psi, pm_function, salience_levels
 from .race import dlognormalrace, lnrm_pointwise_loglik, lnrm_random, plognormalrace, plognormalrace_curve
 from .salience import (
