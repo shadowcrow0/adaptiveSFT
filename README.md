@@ -105,7 +105,7 @@ repo 裡的 `.md` 檔是決策紀錄和說明。先看前四個就夠。
 |---|---|---|
 | `adaptivesft/race.py`（賽跑 likelihood） | `tests/test_race.py` | 密度積分 = 1、與 R 的 `dlognormalrace` 同值 |
 | `adaptivesft/models.py`（PyMC 擬合，v1） | `tests/test_models.py`、`tests/test_lnrm_vs_stan.py` | 後者對 Stan 的後驗（`tests/data/lnrm_stan_oracle.json`） |
-| `adaptivesft/models_v2.py`（同模型，likelihood 全用 PyMC 內建） | `tests/test_models_v2.py` | 逐題 logp 對 v1、後驗對 Stan、後驗預測能跑 |
+| `adaptivesft/models_v2.py`（同模型，likelihood 全用 PyMC 內建） | `tests/test_models_v2.py` | 逐題 logp 對 v1、後驗對 Stan、後驗預測能跑；證明它真的用 `pymc.LogNormal`：`python scripts/proof_pymc_lognormal.py`（報告在 `docs/proof_pymc_lognormal.md`） |
 | `adaptivesft/salience.py`（反解 H/L） | `tests/test_salience.py` | 五種 `alpha2_rule` 的行為 |
 | `adaptivesft/ddm.py`（DDM 模擬） | `tests/test_ddm.py` | 對 R `diffIRT::simdiffT` 的分布 |
 | `adaptivesft/sic.py`（SIC / MIC） | `tests/test_sic.py` | 對 R `sft::sic` 逐位元 |
