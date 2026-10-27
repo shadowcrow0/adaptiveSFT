@@ -399,7 +399,15 @@ P0 的決定依「以本 repo 設定為準」定案，P1–P5 已做完並推上
 | P7 文件、CI | ✔ `pyproject.toml`、`.github/workflows/tests.yml`、頂層 README、`issue.md` §8；LNRM 對 Stan 已比對（cmdstanr 2.40.0，後驗平均差 ≤ 0.01 SD，`tests/test_lnrm_vs_stan.py`） | — |
 
 
-## 11. 進度（2026-10-18）
+## 11. 進度（2026-10-27）
+
+```
+   2026-10-27 新增：models_v2.py（likelihood 全用 PyMC 內建 LogNormal）成為正式版，Visual_AudioWM 的校準改呼叫它；
+   learn/ 五題改教 v2 寫法（pm.logp / pm.logcdf / log1mexp / CustomDist / initval）。
+   交接檔：Visual_AudioWM/review/進度交接_2026-10-27.md
+```
+
+### 2026-10-18 的快照
 
 ```
    adaptiveSFT（Python 版）                        Visual_AudioWM（真人實驗）
