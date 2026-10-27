@@ -75,9 +75,10 @@ def check_ex3():
     for mu, sigma, psi in ((1.5, 0.6, 0.12), (0.5, 0.3, 0.25), (2.0, 1.0, 0.0)):
         mine = as_numpy(race_logp(rt, correct, mu - d, mu + d, sigma, psi))
         ref = lnrm_pointwise_loglik(rt, correct, d, mu, sigma, psi)
-        err = float(np.max(np.abs(mine - ref)))
-        print(f"  mu={mu} sigma={sigma} psi={psi}: max |yours − reference| = {err:.2e}   (sum yours {mine.sum():.4f}, ref {ref.sum():.4f})")
-        res &= ok(err < 1e-6, "逐題 logp 差 < 1e−6")
+        # 容忍度跟 tests/test_models_v2.py 一樣：絕對 1e−6 加相對 1e−7（logp 到 −50 時，兩種寫法的浮點路徑差約 1e−6）
+        err = float(np.max(np.abs(mine - ref) / (1.0 + 0.1 * np.abs(ref))))
+        print(f"  mu={mu} sigma={sigma} psi={psi}: max |yours − reference| / (1 + 0.1·|ref|) = {err:.2e}   (sum yours {mine.sum():.4f}, ref {ref.sum():.4f})")
+        res &= ok(err < 1e-6, "逐題 logp 差 < 1e−6（相對於 logp 的大小）")
     # 尾端：很慢的 RT 不能變成 -inf / nan
     big = as_numpy(race_logp(np.array([50.0, 200.0]), np.array([1, 0], dtype="int32"),
                              np.array([0.0, 0.0]), np.array([0.0, 0.0]), 0.3, 0.0))

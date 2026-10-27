@@ -12,7 +12,14 @@ ex4：完整的 lnrm2 —— 把 ex3 接上強度。
         ψ    ~ Uniform(0, min(rt))
 
 要寫的：build_model(rt, correct, x) 回傳 pm.Model，變數名 "mu" "alpha" "alpha2" "varZ" "psi"。
-likelihood 用你 ex3 的 race_logp（from learn.ex3_race import race_logp）。
+likelihood 用你 ex3 的 race_logp（from learn.ex3_race import race_logp），
+用 pm.CustomDist 掛進模型（adaptivesft/models_v2.py 的做法；pm.Potential 也能過關，但 CustomDist
+會讓 PyMC 認得 rt 是觀測值，之後 idata 才有 log_likelihood、才能做後驗預測）：
+
+    def logp(value, mu, d, sigma, psi, correct):            # CustomDist 的規則：第一個是觀測值，後面是參數
+        return race_logp(value, correct, mu - d, mu + d, sigma, psi)
+
+    pm.CustomDist("obs", mu, d, varZ, psi, correct, logp=logp, observed=rt)
 
 check.py 會：
     1. 讀 tests/data/lnrm_oracle_input.csv（真值 μ 1.5、α 0.8、α₂ −0.15、varZ 0.6、ψ 0.12）
@@ -21,7 +28,10 @@ check.py 會：
        五個參數 |你的平均 − Stan 的平均| / Stan 的 SD < 0.35，Rhat < 1.05
 這和 tests/test_lnrm_vs_stan.py 對 adaptivesft 的要求一模一樣。
 
-提示：psi 的上界要用資料算（float(rt.min())）；NUTS 起點不好會發散，可以給 pm.sample(initvals={...})。
+提示：psi 的上界要用資料算（float(rt.min())）。
+      NUTS 的隨機起點常讓 obs 的 logp 變成 −inf（varZ 抽到很小、psi 貼近 min(rt)），check.py 自己呼叫 pm.sample，
+      所以起點要寫在分布上：pm.Normal("mu", 0, 1, initval=1.0)、varZ initval=0.5、alpha2 initval=−0.1、psi initval=0.3·min(rt)
+      （adaptivesft/models_v2.py 的 build_model 用的就是這組）。
 """
 import numpy as np
 import pymc as pm

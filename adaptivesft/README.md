@@ -37,8 +37,8 @@
    資料 (rt, correct, intensity)                 make_data()            ← dataframe2stan
          │
          ▼
-   fit_lnrm(link=none|linear|quadratic|ogival)   models.py + race.py    ← lnrm0/1/2/2a.stan + rstan
-   fit_lnrm_v2(同上)                              models_v2.py           ← 同模型，likelihood 全用 PyMC 內建拼
+   fit_lnrm_v2(link=none|linear|quadratic|ogival) models_v2.py          ← lnrm0/1/2/2a.stan + rstan；likelihood 用 PyMC 內建 LogNormal 拼（正式版）
+   fit_lnrm(同上)                                 models.py + race.py    ← 同模型，手寫 likelihood 的 v1，留作對照與測試
          │  後驗 {mu, alpha, alpha2 | slope, midpoint, varZ, psi}
          ▼
    find_salience(h_targ, l_targ | acc_high, acc_low)   salience.py     ← find_salience_polynomial / _ogival
@@ -55,7 +55,7 @@
 一步一步讀：
 
 1. `make_data()`：把三欄資料（反應時間 rt、答對與否 correct、刺激強度 intensity）整理成模型要的格式。
-2. `fit_lnrm()`：擬合賽跑模型，拿到後驗。`mu` 是整體速度、`alpha / alpha2` 是強度的效果、
+2. `fit_lnrm_v2()`：擬合賽跑模型，拿到後驗（`fit_lnrm()` 是 v1，同樣的輸出）。`mu` 是整體速度、`alpha / alpha2` 是強度的效果、
    `varZ` 是變異、`psi` 是不算在決策裡的固定延遲（例如按鍵的時間）。ogival 版用 `slope / midpoint`。
 3. `find_salience()`：從後驗反解出高 / 低顯著度的強度。`dropped` 是有多少 draw 無解被丟掉。
 4. `dfp_ddm()`：用 DDM（漂移擴散模型）當假受試者跑一場 DFP。HH / HL / LH / LL 是四個條件
@@ -68,10 +68,10 @@
 
 ```python
 import numpy as np
-from adaptivesft import moc_ddm, fit_lnrm, find_salience, summarize, dfp_ddm, sic, classify
+from adaptivesft import moc_ddm, fit_lnrm_v2, find_salience, summarize, dfp_ddm, sic, classify
 
 data = moc_ddm(100, a=3, v=2, ter=.1, sdv=.2, intensity_levels=np.linspace(-.4, .6, 10), rng=np.random.default_rng(1))
-trace = fit_lnrm(data, link="ogival")                       # L = 10，同 simulateLNRM_ogival.R:26
+trace = fit_lnrm_v2(data, link="ogival")                    # L = 10，同 simulateLNRM_ogival.R:26
 res = find_salience(trace, h_targ=8.0, l_targ=1.3)          # 同 simulateLNRM_ogival.R:24-25
 print(summarize(res))
 res_acc = find_salience(trace, acc_high=0.9, acc_low=0.7)   # 或用正確率當目標

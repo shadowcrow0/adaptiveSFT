@@ -21,17 +21,17 @@
 - **反解**：已知參數，倒過來算出哪個刺激強度會給目標難度；H 是高顯著度、L 是低顯著度。
 
 目標：不靠 AI，把 `lnrm2.stan` 用 PyMC 寫出來，擬合同一份資料，後驗對上 Stan。
-規則：**每個練習先自己寫，跑 `python learn/check.py exN` 對答案；沒過之前不要開 `adaptivesft/models.py`。**
+規則：**每個練習先自己寫，跑 `python learn/check.py exN` 對答案；沒過之前不要開 `adaptivesft/models_v2.py`。**
 答案在 `adaptivesft/` 裡，但它們是「對過的參考」，不是教材；你的版本可以長得不一樣，數字對就好。
 
 ```
    ex1  y ~ Normal(μ, σ)                 PyMC 的骨架：Model / 先驗 / observed / sample / summary
     │
-   ex2  rt ~ ψ + LogNormal(μ, σ)         自己寫 likelihood（pm.Potential）、有上界的位移參數 ψ
+   ex2  rt ~ ψ + LogNormal(μ, σ)         跟 PyMC 要內建分布的 logp（pm.logp）、pm.Potential、有上界的 ψ
     │
-   ex3  兩個累積器的賽跑                   lnrm2.stan 的 model 區塊：lpdf(贏的) + lccdf(輸的)，用 pytensor 寫
+   ex3  兩個累積器的賽跑                   lnrm2.stan 的 model 區塊：lpdf(贏的) + lccdf(輸的)，用 pm.logp / pm.logcdf 拼
     │
-   ex4  d = α·x + α₂·x²，接上 ex3          完整的 lnrm2；擬合 tests/data/lnrm_oracle_input.csv，對 Stan 的後驗
+   ex4  d = α·x + α₂·x²，接上 ex3          完整的 lnrm2，用 pm.CustomDist 掛上；擬合 tests/data/lnrm_oracle_input.csv，對 Stan 的後驗
     │
    ex5  反解 H / L（純 numpy）             adaptiveSFT_functions.R:229-232；對 Stan oracle 裡的數字
 ```
@@ -39,11 +39,12 @@
 每一階在練什麼：
 
 - **ex1**：最簡單的模型，學 PyMC 的五個固定動作。
-- **ex2**：PyMC 沒有現成的「位移對數常態」，所以學自己寫 likelihood 塞進去（`pm.Potential`）。
-  ψ 不能超過最小反應時間，學怎麼給參數上界。
-- **ex3**：賽跑的核心。贏的那條用密度（lpdf），輸的那條用「還沒到」的機率（lccdf，
-  log 補累積分布）。`pytensor` 是 PyMC 的計算引擎，要用它的運算而不是普通 Python。
-- **ex4**：把刺激強度 x 接進來。難度 d 是 x 的二次式。擬合同一份資料，和 Stan 的後驗比。
+- **ex2**：PyMC 有 `LogNormal` 但沒有「位移對數常態」，所以學兩件事：用 `pm.logp(pm.LogNormal.dist(...), t)`
+  跟內建分布要 log 密度（不手寫公式），再用 `pm.Potential` 把它塞進模型。ψ 不能超過最小反應時間，學怎麼給參數上界。
+- **ex3**：賽跑的核心。贏的那條用密度（lpdf → `pm.logp`），輸的那條用「還沒到」的機率
+  （lccdf → `pm.math.log1mexp(pm.logcdf(...))`）。`pytensor` 是 PyMC 的計算引擎，要用它的運算而不是普通 Python。
+- **ex4**：把刺激強度 x 接進來。難度 d 是 x 的二次式。用 `pm.CustomDist` 把 ex3 的 logp 掛成觀測變數。
+  擬合同一份資料，和 Stan 的後驗比。
 - **ex5**：不用 PyMC，純算術。已知 α、α₂，解一個二次方程式得到強度。
 
 每個練習一個檔，裡面有：數學（code block）、要你填的函式（`raise NotImplementedError`）、提示。
@@ -56,8 +57,8 @@
 
 | 週 | 做什麼 | 過關的樣子 |
 |---|---|---|
-| 1 | ex1、ex2。讀 PyMC 官方 "Getting started" 與 "Using a custom likelihood"（pm.Potential） | `check.py ex1 ex2` 綠 |
-| 2 | ex3。先在紙上把 lnrm2.stan 的 for 迴圈翻成「贏的累積器 / 輸的累積器」兩個向量 | `check.py ex3` 綠（logp 對到 1e−6） |
+| 1 | ex1、ex2。讀 PyMC 官方 "Getting started"、`pymc.LogNormal` 的 API 頁（logp / logcdf）、"Using a custom likelihood"（pm.Potential、pm.CustomDist） | `check.py ex1 ex2` 綠 |
+| 2 | ex3。先在紙上把 lnrm2.stan 的 for 迴圈翻成「贏的累積器 / 輸的累積器」兩個向量 | `check.py ex3` 綠（logp 對到相對 1e−6） |
 | 3 | ex4。NUTS 跑 2000 draws 要 1–2 分鐘；對 Stan 後驗，五個參數的平均差 < 0.35 個 SD | `check.py ex4` 綠 |
 | 4 | ex5，然後把 ex4 的模型改成 ogival（d = ½·L·inv_logit(slope·(x − mid))），不給檢查器，自己想怎麼驗 | 能跟老闆解釋為什麼 L 固定 10 會讓 2.0/0.5 的目標掉到範圍外 |
 
@@ -78,16 +79,17 @@
    real<lower=0> varZ;  varZ ~ inv_gamma(1,.1)  varZ = pm.InverseGamma("varZ", alpha=1, beta=0.1)
    real<lower=0,upper=minRT> psi;（無先驗）      psi = pm.Uniform("psi", 0, min_rt)
    transformed parameters { z[1,tr] = mu - d }  z1 = mu - d          ← pytensor 向量運算，不用 for
-   target += lognormal_lpdf(t | z, s)           手寫：−ln t − ln s − ½ln(2π) − (ln t − z)²/(2s²)
-   target += lognormal_lccdf(t | z, s)          手寫：ln(½·erfc((ln t − z)/(s·√2)))   ← ln(1 − Φ)
-   target += ...（整個 model 區塊）              pm.Potential("obs", pt.sum(logp))
+   target += lognormal_lpdf(t | z, s)           pm.logp(pm.LogNormal.dist(mu=z, sigma=s), t)
+   target += lognormal_lccdf(t | z, s)          pm.math.log1mexp(pm.logcdf(pm.LogNormal.dist(mu=z, sigma=s), t))
+   target += ...（整個 model 區塊）              pm.CustomDist("obs", ..., logp=f, observed=rt)（ex2 先用 pm.Potential）
    if (correct[tr]) {...} else {...}            用 correct 當 0/1 權重選 z_win / z_lose，不用 if
 ```
 
 兩個容易卡住的地方：Stan 的 `parameters` 區塊只宣告參數，先驗寫在 `model` 區塊；PyMC 把
 兩件事合成一行。Stan 用 `if` 逐題分「答對 / 答錯」；PyMC 要整個向量一起算，所以用 `correct`
-（0 或 1）當權重去挑哪條累積器是贏家。`Φ` 是標準常態的累積分布函數；`erfc` 是算它尾端
-機率的穩定寫法，直接寫 `ln(1 − Φ)` 在尾端會變成 ln(0)。
+（0 或 1）當權重去挑哪條累積器是贏家。lccdf 是「還沒到」的 log 機率 ln(1 − F)；
+`log1mexp(a) = ln(1 − eᵃ)` 是算它的穩定寫法，直接寫 `ln(1 − exp(logcdf))` 在很慢的 RT 上會變成 ln(0)。
+正式版 `adaptivesft/models_v2.py` 就是這三行；`models.py`（v1）是同一個模型的手寫公式版，留作對照。
 
 ## 環境
 
@@ -104,5 +106,5 @@ python learn/check.py all          # 全部（ex4 要幾分鐘）
 
 1. 跑上面「環境」的第一行。
 2. 打開 `learn/ex1_normal.py`，照檔頭的數學和提示寫 `build_model`，跑 `python learn/check.py ex1`。
-3. 綠了才開下一題。卡住先讀該檔的提示和上面的對照表，不要開 `adaptivesft/models.py`。
+3. 綠了才開下一題。卡住先讀該檔的提示和上面的對照表，不要開 `adaptivesft/models_v2.py`。
 4. 四週走完，你應該能自己解釋 lnrm2 的每一行，以及為什麼 L 固定 10 會讓小目標掉到範圍外。

@@ -33,7 +33,8 @@ and its Python port.
    原始碼（R / Stan，唯讀，2018–2019）              Python 版（adaptivesft/，2026）
    ─────────────────────────────────────           ─────────────────────────────────────────
    adaptiveSFT_functions.R                          race.py  salience.py  ddm.py
-   lnrm2.stan（lnrm0/1/2a.stan 遺失）               models.py（四個 link，NUTS）
+   lnrm2.stan（lnrm0/1/2a.stan 遺失）               models_v2.py（四個 link，NUTS；likelihood 用 PyMC 內建 LogNormal）
+                                                    models.py（同模型，手寫 likelihood 的 v1，留作對照）
    psiSimulation_functions.R                        psi.py（逐行移植，網格照 R）
    psi Simulation_26MAR2019.R                       scripts/simulate_psi.py
    simulateLNRM_ogival.R                            scripts/simulate_lnrm_ogival.py
@@ -104,8 +105,8 @@ repo 裡的 `.md` 檔是決策紀錄和說明。先看前四個就夠。
 | 模組 | 對應的測試 | 改之前先跑 |
 |---|---|---|
 | `adaptivesft/race.py`（賽跑 likelihood） | `tests/test_race.py` | 密度積分 = 1、與 R 的 `dlognormalrace` 同值 |
-| `adaptivesft/models.py`（PyMC 擬合，v1） | `tests/test_models.py`、`tests/test_lnrm_vs_stan.py` | 後者對 Stan 的後驗（`tests/data/lnrm_stan_oracle.json`） |
-| `adaptivesft/models_v2.py`（同模型，likelihood 全用 PyMC 內建） | `tests/test_models_v2.py` | 逐題 logp 對 v1、後驗對 Stan、後驗預測能跑；證明它真的用 `pymc.LogNormal`：`python scripts/proof_pymc_lognormal.py`（報告在 `docs/proof_pymc_lognormal.md`） |
+| `adaptivesft/models.py`（PyMC 擬合，v1 手寫 likelihood，對照用） | `tests/test_models.py`、`tests/test_lnrm_vs_stan.py` | 後者對 Stan 的後驗（`tests/data/lnrm_stan_oracle.json`） |
+| `adaptivesft/models_v2.py`（**正式版**，Visual_AudioWM 的校準用這個；likelihood 全用 PyMC 內建） | `tests/test_models_v2.py` | 逐題 logp 對 v1、後驗對 Stan、後驗預測能跑；證明它真的用 `pymc.LogNormal`：`python scripts/proof_pymc_lognormal.py`（報告在 `docs/proof_pymc_lognormal.md`） |
 | `adaptivesft/salience.py`（反解 H/L） | `tests/test_salience.py` | 五種 `alpha2_rule` 的行為 |
 | `adaptivesft/ddm.py`（DDM 模擬） | `tests/test_ddm.py` | 對 R `diffIRT::simdiffT` 的分布 |
 | `adaptivesft/sic.py`（SIC / MIC） | `tests/test_sic.py` | 對 R `sft::sic` 逐位元 |

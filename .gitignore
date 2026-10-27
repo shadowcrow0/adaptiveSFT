@@ -5,3 +5,4 @@ output/
 stan/lnrm2_array
 stan/*.hpp
 stan/*.o
+adaptivesft.egg-info/
