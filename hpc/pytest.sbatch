@@ -11,8 +11,9 @@
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
 ENV_ROOT="${ENV_ROOT:-/work/$USER/envs}"
+ASFT_ENV="${ASFT_ENV:-$ENV_ROOT/asft}"   # 環境在別處：sbatch --export=ALL,ASFT_ENV=/work/<id>/envs/sim ...
 module load anaconda3                     # 改成 module avail anaconda 看到的名字
-PY=(conda run -p "$ENV_ROOT/asft" --no-capture-output)
+PY=(conda run -p "$ASFT_ENV" --no-capture-output)
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1   # 讓 PyMC 的鏈平行而不是 BLAS 搶核
 
 echo "host $(hostname)  cpus $SLURM_CPUS_PER_TASK  $(date)"

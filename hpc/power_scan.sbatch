@@ -15,11 +15,12 @@
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
 ENV_ROOT="${ENV_ROOT:-/work/$USER/envs}"
+ASFT_ENV="${ASFT_ENV:-$ENV_ROOT/asft}"   # 環境在別處：sbatch --export=ALL,ASFT_ENV=/work/<id>/envs/sim ...
 NP="${NP:-50}"
 TARGETS="${TARGETS:-2.0:0.5 4.0:1.0 8.0:1.3}"
 NCELL="${NCELL:-84 100 120 150 200 250}"
 module load anaconda3                     # 改成 module avail anaconda 看到的名字
-PY=(conda run -p "$ENV_ROOT/asft" --no-capture-output)
+PY=(conda run -p "$ASFT_ENV" --no-capture-output)
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 
 echo "host $(hostname)  cpus $SLURM_CPUS_PER_TASK  $(date)"
