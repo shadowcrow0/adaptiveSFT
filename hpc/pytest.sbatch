@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=adaptivesft-tests
-#SBATCH --partition=compute1          # sinfo 查實際分區名
+#SBATCH --partition=compute1          # Arc：compute1（65 節點，常滿）、compute3（6 節點）；送時可用 -p 蓋掉
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4             # PyMC 4 鏈平行
-#SBATCH --mem-per-cpu=2G             # 用 --mem=8G 會被拒：「Memory specification can not be satisfied」
 #SBATCH --time=01:00:00
 #SBATCH --output=slurm-%x-%j.out
 # 整套 pytest（有 Stan oracle 時包含 test_lnrm_vs_stan.py）+ 兩個英文 demo，輸出寫進 results/。

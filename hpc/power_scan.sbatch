@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=asft-power-scan
-#SBATCH --partition=compute1          # sinfo 查實際分區名
+#SBATCH --partition=compute1          # Arc：compute1（65 節點，常滿）、compute3（6 節點）；送時可用 -p 蓋掉
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4             # PyMC 4 鏈平行
-#SBATCH --mem-per-cpu=2G             # 用 --mem=8G 會被拒：「Memory specification can not be satisfied」
 #SBATCH --time=06:00:00
 #SBATCH --output=slurm-%x-%j.out
 # 檢定力細掃：目標（H/L 漂移差）× 每格試次 × 五種架構 → sicGroup 判對率。
