@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4             # PyMC 4 鏈平行
-#SBATCH --mem=8G
+#SBATCH --mem-per-cpu=2G             # 用 --mem=8G 會被拒：「Memory specification can not be satisfied」
 #SBATCH --time=01:00:00
 #SBATCH --output=slurm-%x-%j.out
 # 整套 pytest（有 Stan oracle 時包含 test_lnrm_vs_stan.py）+ 兩個英文 demo，輸出寫進 results/。

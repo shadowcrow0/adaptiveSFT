@@ -4,7 +4,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4             # PyMC 4 鏈平行
-#SBATCH --mem=8G
+#SBATCH --mem-per-cpu=2G             # 用 --mem=8G 會被拒：「Memory specification can not be satisfied」
 #SBATCH --time=06:00:00
 #SBATCH --output=slurm-%x-%j.out
 # 檢定力細掃：目標（H/L 漂移差）× 每格試次 × 五種架構 → sicGroup 判對率。
