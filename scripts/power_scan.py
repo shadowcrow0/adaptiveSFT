@@ -48,6 +48,8 @@ def main():
     ap.add_argument("--tune", type=int, default=800)
     ap.add_argument("--draws", type=int, default=800)
     ap.add_argument("--out", default="results/power_scan.csv")
+    ap.add_argument("--clip-h", action="store_true",
+                    help="把反解出的 H / L 截到可呈現範圍 [min, max]（實驗程式的做法；不截 = 用外推值當漂移倍率，偏樂觀）")
     args = ap.parse_args()
     sep = args.a_convention == "separation"
     targets = [tuple(float(v) for v in t.split(":")) for t in args.targets]
@@ -68,8 +70,12 @@ def main():
             per_dim[dim] = {}
             for h, l in targets:
                 res = find_salience(tr, h_targ=h, l_targ=l)
+                hi, lo = res["high"]["intensity"], res["low"]["intensity"]
+                if args.clip_h:
+                    hi = float(np.clip(hi, scaled.min(), scaled.max())) if np.isfinite(hi) else scaled.max()
+                    lo = float(np.clip(lo, scaled.min(), scaled.max())) if np.isfinite(lo) else lo
                 per_dim[dim][(h, l)] = dict(
-                    high=res["high"]["intensity"], low=res["low"]["intensity"],
+                    high=hi, low=lo,
                     in_range=bool(np.isfinite(res["high"]["intensity"]) and scaled.min() <= res["high"]["intensity"] <= scaled.max()),
                     dropped=res["high"]["dropped"])
         people.append(dict(sn=sn, a=a_p, v=v_p, ter=ter_p, sdv=sdv_p, dims=per_dim))
