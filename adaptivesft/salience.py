@@ -191,6 +191,43 @@ def find_salience(trace, h_targ=None, l_targ=None, acc_high=None, acc_low=None, 
     return res
 
 
+def find_points(trace, plateau=0.9):
+    """
+    心理計量「點」的反解（Visual_AudioWM DECISIONS 25），只給 link='ogival'（Houpt 的 lnrm2a 形狀），含或不含 b0：
+
+        d_eff(x) = b0 + A · logistic(slope · (x − midpoint)),   A = L · 2 · ogival_offset / 2 = L · ogival_offset
+
+        low  = x50       d_eff(x) = 0 的地方 —— 兩個累積器同時到，答「不一樣」的機率 50%。
+                         與 σ 無關、與曲線後段怎麼彎無關；b0 ≥ 0（強度 0 就偏「不一樣」）或 −b0 ≥ A（永遠到不了 50%）時無解。
+        high = plateau   logistic = plateau 的地方（預設 .9）：d 到頂 90%，之後再加強度 RT 也不會更快。
+                         與 b0 無關：x = midpoint + logit(plateau) / slope。
+
+    為什麼不用「90% 正確率」當 high：LNRM 的正確率 Φ(√2·d/σ) 與 RT 離散共用 σ，WM 負荷下 σ ≈ 1.2 時模型認為
+    90% 要 d_eff ≈ 1.1，而 d 的天花板只估到 0.7–0.9，於是「永遠到不了」——資料卻在上面幾級全對。
+    回傳格式同 find_salience（high / low 各一個 _pack；加 'median' 是建議採用的點估計：根是比值型分布，平均不穩）。
+    """
+    if trace.attrs["link"] != "ogival":
+        raise ValueError("find_points 只接受 link='ogival'")
+    A = _L_draws(trace) * float(trace.attrs.get("ogival_offset", 0.5))
+    slope = np.atleast_1d(_param(trace, "slope")).astype(float)
+    mid = np.atleast_1d(_param(trace, "midpoint")).astype(float)
+    b0 = np.atleast_1d(_param(trace, "b0")).astype(float) if "b0" in trace.posterior else np.zeros_like(slope)
+    A, slope, mid, b0 = np.broadcast_arrays(np.atleast_1d(A).astype(float), slope, mid, b0)
+    warnings = []
+    with np.errstate(divide="ignore", invalid="ignore"):
+        frac = -b0 / A
+        x50 = np.where((frac > 0.0) & (frac < 1.0) & (slope > 0), mid + logit(frac) / slope, np.nan)
+        xpl = np.where(slope > 0, mid + logit(float(plateau)) / slope, np.nan)
+    if np.mean(b0 >= 0) > 0.5:
+        warnings.append("low: 多數 draw 的 b0 ≥ 0 —— 強度 0 就偏答「不一樣」，50% 點在最低層級以下")
+    elif np.mean(-b0 >= A) > 0.5:
+        warnings.append("low: 多數 draw 的 −b0 ≥ A —— 曲線到頂也不到 50%")
+    out = {"high": _pack("high", float(plateau), xpl, warnings), "low": _pack("low", 0.0, x50, warnings),
+           "warnings": warnings, "rule": f"points(x50, plateau{plateau:g})",
+           "params": {k: float(np.median(v)) for k, v in (("b0", b0), ("slope", slope), ("midpoint", mid), ("A", A))}}
+    return out
+
+
 def summarize(res):
     lines = [f"rule = {res['rule']}"]
     for name in ("high", "low"):

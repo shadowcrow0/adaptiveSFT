@@ -66,3 +66,36 @@ def test_v2_posterior_matches_stan():
         v = tr.posterior[row["name"]].values.ravel()
         assert abs(v.mean() - row["mean"]) / row["sd"] < 0.35, row["name"]
         assert abs(v.std() - row["sd"]) / row["sd"] < 0.30, row["name"]
+
+
+def _sim_same_different(n=240, seed=3, b0=-1.0, A=1.6, slope=1.5, mid=2.0, mu=-0.4, varZ=0.5, psi=0.15):
+    """同／異作業的模擬聽者：強度 0 時「一樣」領先 |b0|（答「不一樣」< 50%），d_eff 沿 ogival 升到 b0 + A。"""
+    rng = np.random.default_rng(seed)
+    x = rng.choice([0.8, 1.4, 2.0, 2.8, 4.5, 7.0], n)
+    d = b0 + A / (1.0 + np.exp(-slope * (x - mid)))
+    rt, correct = lnrm_random(d, mu, varZ, psi, rng)
+    return make_data(x, rt, correct), dict(b0=b0, A=A, slope=slope, mid=mid, x50=mid + np.log((-b0 / A) / (1 + b0 / A)) / slope,
+                                          plateau90=mid + np.log(9.0) / slope)
+
+
+def test_bias_ogival_recovers_points():
+    """bias=True + ogival：b0 的符號與 50% 點、到頂 90% 點要回復得到（DECISIONS 25）。"""
+    from adaptivesft.salience import find_points
+    data, truth = _sim_same_different()
+    tr = fit_lnrm_v2(data, link="ogival", L="estimate", bias=True, tune=600, draws=600, chains=2, random_seed=1,
+                     nuts_sampler="nutpie", target_accept=0.95)
+    assert tr.attrs["bias"] is True and "b0" in tr.posterior
+    b0 = tr.posterior["b0"].values.ravel()
+    assert np.mean(b0 < 0) > 0.95, "b0 的符號（偏「一樣」）沒有回復"
+    pts = find_points(tr)
+    assert abs(pts["low"]["median"] - truth["x50"]) < 0.5, (pts["low"]["median"], truth["x50"])
+    assert pts["low"]["dropped"] < 0.1
+    assert abs(pts["high"]["median"] - truth["plateau90"]) < 1.5, (pts["high"]["median"], truth["plateau90"])
+    assert pts["rule"].startswith("points")
+
+
+def test_bias_false_is_unchanged():
+    """bias=False 時模型裡沒有 b0，attrs 標 False（Houpt 對齊測試靠這個）。"""
+    data, _ = _sim(n=60)
+    model, info = build_model(data, link="ogival", L="estimate")
+    assert "b0" not in [v.name for v in model.free_RVs] and info["attrs"]["bias"] is False

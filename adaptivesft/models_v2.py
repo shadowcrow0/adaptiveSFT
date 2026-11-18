@@ -52,7 +52,7 @@ def race_random(mu, d, sigma, psi, correct, rng=None, size=None):
 
 
 def fit_lnrm_v2(data, link="quadratic", L=L_MAX_SEPARATION, fix_params=None, ogival_offset=0.5, positive_slope=True,
-                tune=1000, draws=1000, chains=4, random_seed=42, progressbar=False, target_accept=0.9, **sample_kwargs):
+                bias=False, tune=1000, draws=1000, chains=4, random_seed=42, progressbar=False, target_accept=0.9, **sample_kwargs):
     """
     同 models.fit_lnrm（NUTS 版），回傳 arviz.InferenceData；attrs 與 v1 相同。
     多出來的：idata.log_likelihood["obs"]（PyMC 內建）、可以直接 pm.sample_posterior_predictive(idata, model=idata.attrs 無法存 model，
@@ -63,7 +63,7 @@ def fit_lnrm_v2(data, link="quadratic", L=L_MAX_SEPARATION, fix_params=None, ogi
     if ogival_offset not in (0.5, 1.0):
         raise ValueError("ogival_offset 必須是 0.5（½L）或 1.0（L）")
     model, info = build_model(data, link=link, L=L, fix_params=fix_params, ogival_offset=ogival_offset,
-                              positive_slope=positive_slope)
+                              positive_slope=positive_slope, bias=bias)
     with model:
         idata = pm.sample(draws=draws, tune=tune, chains=chains, random_seed=random_seed, initvals=info["initvals"],
                           progressbar=progressbar, target_accept=target_accept,
@@ -73,8 +73,13 @@ def fit_lnrm_v2(data, link="quadratic", L=L_MAX_SEPARATION, fix_params=None, ogi
     return idata
 
 
-def build_model(data, link="quadratic", L=L_MAX_SEPARATION, fix_params=None, ogival_offset=0.5, positive_slope=True):
-    """建 pm.Model（給 fit_lnrm_v2 與後驗預測用）。回傳 (model, info)；info 有 initvals 與要寫進 idata.attrs 的東西。"""
+def build_model(data, link="quadratic", L=L_MAX_SEPARATION, fix_params=None, ogival_offset=0.5, positive_slope=True, bias=False):
+    """建 pm.Model（給 fit_lnrm_v2 與後驗預測用）。回傳 (model, info)；info 有 initvals 與要寫進 idata.attrs 的東西。
+
+    bias=True 多一個截距 b0 ~ Normal(0, 2)：d_eff(x) = b0 + d_link(x)。lnrm2 假設強度 0 時兩個累積器一樣快（答對率 50%），
+    那是對稱二選一的情形；same/different 作業裡強度 0 的正確答案就是「一樣」，答「不一樣」的比例掉到誤報率，
+    不是 50%。沒有 b0 的話模型只能用負斜率去模仿地板，α 的後驗跨零（Visual_AudioWM DECISIONS 25）。
+    b0 < 0：偏「一樣」（判準保守）；b0 > 0：偏「不一樣」。bias=False 與 Houpt 的 lnrm2 / lnrm2a 逐字相同。"""
     estimate_L = isinstance(L, str) and L == "estimate"
     fix_params = dict(fix_params or {})
     data = np.asarray(data, dtype=float)
@@ -106,14 +111,19 @@ def build_model(data, link="quadratic", L=L_MAX_SEPARATION, fix_params=None, ogi
             if estimate_L:
                 param("L", lambda: pm.HalfNormal("L", 10.0), L_MAX_SEPARATION)
 
+        if bias:
+            param("b0", lambda: pm.Normal("b0", 0.0, 2.0), -0.5)
+
         L_used = p["L"] if estimate_L else float(L)
         x_t = pm.Data("intensity", x)
         c_t = pm.Data("correct", correct)
         d = d_expr(link, x_t, p, L_used) * (2.0 * ogival_offset if link == "ogival" else 1.0)
+        if bias:
+            d = p["b0"] + d
         pm.CustomDist("obs", p["mu"], d, p["varZ"], p["psi"], c_t, logp=race_logp, random=race_random, observed=rt)
 
     attrs = dict(link=link, L="estimate" if estimate_L else float(L), ogival_offset=float(ogival_offset),
-                 positive_slope=bool(positive_slope), sampler="nuts", min_rt=min_rt,
+                 positive_slope=bool(positive_slope), bias=bool(bias), sampler="nuts", min_rt=min_rt,
                  fix_params={k: float(v) for k, v in fix_params.items()},
                  intensity_levels=[float(v) for v in np.unique(x)], implementation="v2")
     return model, dict(initvals=initvals, attrs=attrs)
