@@ -5,8 +5,11 @@
 **簡潔模式 (concise)。** 直接給結論，不要鋪陳、不要重述問題、
 不要在結尾摘要已經說過的話。能用一句講完就不要用一段。
 
-**解釋概念時用 ASCII 圖。** 說明流程、資料結構、模型行為、或任何有
-「東西 A 怎麼變成東西 B」的內容時，畫一張 ASCII 圖，不要只用文字描述。
+**解釋概念時用 Python 畫圖，不用 ASCII 圖。** 說明流程、資料結構、模型行為、
+或任何「東西 A 怎麼變成東西 B」的內容時，用 matplotlib 拿真實數字畫成 PNG，
+傳給使用者，再逐格解釋。少量數字用 markdown 表格即可。中文字型用
+WenQuanYi Zen Hei Mono；負號用 ASCII `-`、下標寫成 `b0` / `a2`（該字型沒有
+`−` 與下標字元）。
 
 **數學公式放進 code block，用 Unicode 符號排版。不要用 LaTeX。**
 
@@ -20,28 +23,6 @@
                          1                    (    (ln y − m)²  )
       f(y; m, s)  =  ───────────────  ·  exp  ( − ────────────  )
                       y · s · √(2π)            (       2 s²      )
-```
-
-**流程圖、結構圖同樣用 ASCII art。**
-
-範例：
-
-```
-資料 (intensity, rt, correct)
-      |
-      v
-  lnrm2.stan  --> 後驗 {mu, alpha, alpha2, varZ, psi}
-      |
-      v
-  解二次式 --> high / low salience
-```
-
-```
-   z[1,tr] = mu - d     "答對" 累積器
-                 ^
-                 |  d = alpha*intensity + alpha2*intensity^2
-                 v
-   z[2,tr] = mu + d     "答錯" 累積器
 ```
 
 ## 撰寫文件時
